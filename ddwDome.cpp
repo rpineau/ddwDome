@@ -862,6 +862,8 @@ int CddwDome::getCurrentShutterState()
 }
 
 
+// V4,701,527,4,526,0,1,1,0,522,532,0,128,255,255,255,255,255,255,255,999,5,0
+
 
 int CddwDome::parseGINF(char *ginf)
 {
@@ -880,7 +882,7 @@ int CddwDome::parseGINF(char *ginf)
     if (seglist[0] == "V1")
         n =9;
     else
-        n = 25;
+        n = 23;
 
     if(seglist.size() < n)
         return DDW_BAD_CMD_RESPONSE;
