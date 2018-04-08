@@ -12,8 +12,9 @@ fi
 TheSkyX_Path=$(<"$TheSkyX_Install")
 echo "Installing to $TheSkyX_Path"
 
+
 if [ ! -d "$TheSkyX_Path" ]; then
-    echo TheSkyX Install dir not exist
+    echo "Coudln't find TheSkyX application location"
     exit 1
 fi
 
