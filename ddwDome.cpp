@@ -202,8 +202,8 @@ int CddwDome::getDomeAz(double &domeAz)
     // parse INF packet to get current ADAZ
     parseGINF(resp);
 
-    domeAzticks = atof(gInf[gADAZ].c_str());
-    domeTicksPerRev = atof(gInf[gDticks].c_str());
+    domeAzticks =  std::stof(m_svGinf[gADAZ]);
+    domeTicksPerRev = std::stof(m_svGinf[gDticks]);
 
     domeAz = (359.0/domeTicksPerRev) * domeAzticks;
     mCurrentAzPosition = domeAz;
@@ -255,8 +255,8 @@ int CddwDome::getDomeHomeAz(double &Az)
     // parse INF packet to get home1 position
     parseGINF(resp);
 
-    HomeAzticks = atof(gInf[gHomeAz].c_str());
-    domeTicksPerRev = atof(gInf[gDticks].c_str());
+    HomeAzticks = std::stof(m_svGinf[gHomeAz]);
+    domeTicksPerRev = std::stof(m_svGinf[gDticks]);
 
     Az = (359.0/domeTicksPerRev) * HomeAzticks;
     mHomeAz = Az;
@@ -285,7 +285,7 @@ int CddwDome::getShutterState(int &state)
     // parse INF packet to get Shutter position
     parseGINF(resp);
 
-	shutterState = atoi(gInf[gShutter].c_str());
+    shutterState = std::stoi(m_svGinf[gShutter]);
 
     switch(shutterState) {
         case OPEN:
@@ -324,7 +324,7 @@ int CddwDome::getDomeStepPerRev(int &stepPerRev)
 
     // parse INF packet to get DTICKS
     parseGINF(resp);
-    stepPerRev = atoi(gInf[gDticks].c_str());
+    stepPerRev =  std::stoi(m_svGinf[gDticks]);
 
     mNbStepPerRev = stepPerRev;
     return err;
@@ -867,26 +867,40 @@ int CddwDome::getCurrentShutterState()
 
 int CddwDome::parseGINF(char *ginf)
 {
+    int nErr = DDW_OK;
     int n;
-    std::string segment;
-    std::vector<std::string> seglist;
-    std::stringstream tmpGinf(ginf);
+    std::vector<std::string> vFieldsData;
 
-    std::cout << "tmpGinf = " << tmpGinf.str() << "\n";
-    // split the string into vector elements
-    while(std::getline(tmpGinf, segment, ','))
-    {
-        seglist.push_back(segment);
-    }
+    nErr = parseFields(ginf, vFieldsData, ',');
     // do we have all the fields ?
-    if (seglist[0] == "V1")
+    if (vFieldsData[0] == "V1")
         n =9;
     else
         n = 23;
 
-    if(seglist.size() < n)
+    if(vFieldsData.size() < n)
         return DDW_BAD_CMD_RESPONSE;
 
-    gInf = seglist;
+    m_svGinf = vFieldsData;
     return DDW_OK;
 }
+
+int CddwDome::parseFields(const char *pszIn, std::vector<std::string> &svFields, const char &cSeparator)
+{
+    int nErr = DDW_OK;
+    std::string sSegment;
+    std::stringstream ssTmp(pszIn);
+
+    svFields.clear();
+    // split the string into vector elements
+    while(std::getline(ssTmp, sSegment, cSeparator))
+    {
+        svFields.push_back(sSegment);
+    }
+
+    if(svFields.size()==0) {
+        nErr = ERR_BADFORMAT;
+    }
+    return nErr;
+}
+

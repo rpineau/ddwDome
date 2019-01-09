@@ -119,7 +119,9 @@ protected:
     int             domeCommand(const char *cmd, char *result, int resultMaxLen);
 
     int             parseGINF(char *ginf);
-
+    int             parseFields(const char *pszIn, std::vector<std::string> &svFields, const char &cSeparator);
+    
+    
     LoggerInterface *mLogger;
     bool            bDebugLog;
     
@@ -146,7 +148,7 @@ protected:
     bool            mShutterOpened;
 
     char            mLogBuffer[ND_LOG_BUFFER_SIZE];
-    std::vector<std::string>    gInf;
+    std::vector<std::string>    m_svGinf;
 
 
 };
