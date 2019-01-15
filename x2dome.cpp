@@ -23,14 +23,12 @@ X2Dome::X2Dome(const char* pszSelection,
 
 	m_bLinked = false;
     mCalibratingDome = false;
-    mBattRequest = 0;
-    
+
     ddwDome.SetSerxPointer(pSerX);
     ddwDome.setLogger(pLogger);
 
     if (m_pIniUtil)
     {   
-        ddwDome.setHomeAz( m_pIniUtil->readDouble(PARENT_KEY, CHILD_KEY_HOME_AZ, 180) );
     }
 }
 
@@ -113,8 +111,6 @@ int X2Dome::execModalSettingsDialog()
     X2GUIExchangeInterface*			dx = NULL;//Comes after ui is loaded
     bool bPressedOK = false;
     char tmpBuf[SERIAL_BUFFER_SIZE];
-    double dHomeAz;
-    double dParkAz;
     
 
     if (NULL == ui)
@@ -146,12 +142,10 @@ int X2Dome::execModalSettingsDialog()
     else {
         snprintf(tmpBuf,16,"NA");
         dx->setPropertyString("ticksPerRev","text", tmpBuf);
-        dx->setPropertyString("shutterBatteryLevel","text", tmpBuf);
         dx->setEnabled("pushButton",false);
     }
     dx->setPropertyDouble("homePosition","value", ddwDome.getHomeAz());
 
-    mBattRequest = 0;
     mCalibratingDome = false;
     
     X2MutexLocker ml(GetMutex());
@@ -163,17 +157,6 @@ int X2Dome::execModalSettingsDialog()
     //Retreive values from the user interface
     if (bPressedOK)
     {
-        dx->propertyDouble("homePosition", "value", dHomeAz);
-        dx->propertyDouble("parkPosition", "value", dParkAz);
-
-        if(m_bLinked)
-        {
-            ddwDome.setHomeAz(dHomeAz);
-        }
-
-        // save the values to persistent storage
-        nErr |= m_pIniUtil->writeDouble(PARENT_KEY, CHILD_KEY_HOME_AZ, dHomeAz);
-        nErr |= m_pIniUtil->writeDouble(PARENT_KEY, CHILD_KEY_PARK_AZ, dParkAz);
     }
     return nErr;
 
@@ -247,7 +230,7 @@ void X2Dome::deviceInfoNameShort(BasicStringInterface& str) const
 
 void X2Dome::deviceInfoNameLong(BasicStringInterface& str) const					
 {
-    str = "TI Digital Dome Works";
+    str = "Technical Innovations Digital Dome Works";
 }
 
 void X2Dome::deviceInfoDetailedDescription(BasicStringInterface& str) const		

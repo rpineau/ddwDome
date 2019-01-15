@@ -434,14 +434,7 @@ bool CddwDome::isDomeAtHome()
 
 int CddwDome::syncDome(double dAz, double dEl)
 {
-    int nErr = DDW_OK;
-
-    if(!m_bIsConnected)
-        return NOT_CONNECTED;
-
-    // m_dCurrentAzPosition = dAz;
-
-    return nErr;
+    return ERR_COMMANDNOTSUPPORTED;
 }
 
 int CddwDome::parkDome()
@@ -454,15 +447,26 @@ int CddwDome::parkDome()
     if(m_bCalibrating)
         return SB_OK;
 
+    nErr = goHome();
+    if(nErr)
+        return nErr;
+
+    m_bIsHoming = true;
+
     return nErr;
 }
 
 int CddwDome::unparkDome()
 {
+    int nErr = DDW_OK;
+
     m_bParked = false;
-    m_dCurrentAzPosition = m_dHomeAz;
-    syncDome(m_dCurrentAzPosition, m_dCurrentElPosition);
-    return 0;
+    nErr = goHome();
+    if(nErr)
+        return nErr;
+
+    m_bIsHoming = true;
+    return nErr;
 }
 
 int CddwDome::gotoAzimuth(double newAz)
@@ -711,46 +715,27 @@ int CddwDome::isCloseComplete(bool &complete)
 }
 
 
-int CddwDome::isParkComplete(bool &complete)
+int CddwDome::isParkComplete(bool &bComplete)
 {
     int nErr = DDW_OK;
-    double dDomeAz=0;
-
-    if(!m_bIsConnected)
-        return NOT_CONNECTED;
-
-    getDomeAz(dDomeAz);
-
-    if(isDomeMoving()) {
-        complete = false;
-        return nErr;
-    }
-
-    if (ceil(m_dHomeAz) == ceil(dDomeAz))
-    {
-        m_bParked = true;
-        complete = true;
-    }
-    else {
-        // we're not moving and we're not at the final destination !!!
-        complete = false;
-        m_bHomed = false;
-        m_bParked = false;
-        nErr = ERR_CMDFAILED;
-    }
-
+    nErr = isFindHomeComplete(bComplete);
     return nErr;
 }
 
-int CddwDome::isUnparkComplete(bool &complete)
+int CddwDome::isUnparkComplete(bool &bComplete)
 {
     int nErr = DDW_OK;
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    m_bParked = false;
-    complete = true;
+    nErr = isFindHomeComplete(bComplete);
+    if(nErr)
+        return nErr;
+
+    if(bComplete) {
+        m_bParked = false;
+    }
 
     return nErr;
 }

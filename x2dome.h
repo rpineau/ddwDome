@@ -165,7 +165,4 @@ private:
     bool        mOpenUpperShutterOnly;
     bool        mCalibratingDome;
     char        mLogBuffer[LOG_BUFFER_SIZE];
-    int         mBattRequest;
-    
-    // bool        mIsRollOffRoof;
 };
