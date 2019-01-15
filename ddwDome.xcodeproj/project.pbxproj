@@ -15,6 +15,7 @@
 		9322CCA01E2D9F9A00A8E881 /* ddwDome.h in Headers */ = {isa = PBXBuildFile; fileRef = 9322CC9A1E2D9F9A00A8E881 /* ddwDome.h */; };
 		9322CCA11E2D9F9A00A8E881 /* x2dome.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9322CC9B1E2D9F9A00A8E881 /* x2dome.cpp */; };
 		9322CCA21E2D9F9A00A8E881 /* x2dome.h in Headers */ = {isa = PBXBuildFile; fileRef = 9322CC9C1E2D9F9A00A8E881 /* x2dome.h */; };
+		9368920D21EE8AB0004300D0 /* StopWatch.h in Headers */ = {isa = PBXBuildFile; fileRef = 9368920C21EE8AB0004300D0 /* StopWatch.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +28,7 @@
 		9322CC9A1E2D9F9A00A8E881 /* ddwDome.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ddwDome.h; sourceTree = "<group>"; };
 		9322CC9B1E2D9F9A00A8E881 /* x2dome.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = x2dome.cpp; sourceTree = "<group>"; };
 		9322CC9C1E2D9F9A00A8E881 /* x2dome.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = x2dome.h; sourceTree = "<group>"; };
+		9368920C21EE8AB0004300D0 /* StopWatch.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = StopWatch.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -71,6 +73,7 @@
 		9322CC961E2D9F1300A8E881 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				9368920C21EE8AB0004300D0 /* StopWatch.h */,
 				9322CC971E2D9F9A00A8E881 /* main.cpp */,
 				9322CC981E2D9F9A00A8E881 /* main.h */,
 				9322CC991E2D9F9A00A8E881 /* ddwDome.cpp */,
@@ -90,6 +93,7 @@
 			files = (
 				9322CC9E1E2D9F9A00A8E881 /* main.h in Headers */,
 				9322CCA01E2D9F9A00A8E881 /* ddwDome.h in Headers */,
+				9368920D21EE8AB0004300D0 /* StopWatch.h in Headers */,
 				9322CCA21E2D9F9A00A8E881 /* x2dome.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

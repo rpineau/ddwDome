@@ -1,17 +1,4 @@
-#include <stdio.h>
-#include <string.h>
 #include "x2dome.h"
-#include "../../licensedinterfaces/sberrorx.h"
-#include "../../licensedinterfaces/basicstringinterface.h"
-#include "../../licensedinterfaces/serxinterface.h"
-#include "../../licensedinterfaces/basiciniutilinterface.h"
-#include "../../licensedinterfaces/theskyxfacadefordriversinterface.h"
-#include "../../licensedinterfaces/sleeperinterface.h"
-#include "../../licensedinterfaces/loggerinterface.h"
-#include "../../licensedinterfaces/basiciniutilinterface.h"
-#include "../../licensedinterfaces/mutexinterface.h"
-#include "../../licensedinterfaces/tickcountinterface.h"
-#include "../../licensedinterfaces/serialportparams2interface.h"
 
 
 X2Dome::X2Dome(const char* pszSelection, 
@@ -70,20 +57,20 @@ X2Dome::~X2Dome()
 
 int X2Dome::establishLink(void)					
 {
-    int err;
+    int nErr = SB_OK;
     char szPort[DRIVER_MAX_STRING];
 
     X2MutexLocker ml(GetMutex());
     // get serial port device name
     portNameOnToCharPtr(szPort,DRIVER_MAX_STRING);
-    err = ddwDome.Connect(szPort);
-    if(err)
+    nErr = ddwDome.Connect(szPort);
+    if(nErr)
         m_bLinked = false;
     else
         m_bLinked = true;
 
 
-    return err;
+    return nErr;
 }
 
 int X2Dome::terminateLink(void)					
@@ -195,7 +182,7 @@ int X2Dome::execModalSettingsDialog()
 void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
 {
     bool complete = false;
-    int err;
+    int nErr = SB_OK;
     char tmpBuf[SERIAL_BUFFER_SIZE];
     char errorMessage[LOG_BUFFER_SIZE];
     
@@ -208,11 +195,11 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
             if(mCalibratingDome) {
                 // are we still calibrating ?
                 complete = false;
-                err = ddwDome.isCalibratingComplete(complete);
-                if (err) {
+                nErr = ddwDome.isCalibratingComplete(complete);
+                if (nErr) {
                     uiex->setEnabled("pushButton",true);
                     uiex->setEnabled("pushButtonOK",true);
-                    snprintf(errorMessage, LOG_BUFFER_SIZE, "Error calibrating dome : Error %d", err);
+                    snprintf(errorMessage, LOG_BUFFER_SIZE, "Error calibrating dome : Error %d", nErr);
                     uiex->messageBox("ddwDome Calibrate", errorMessage);
                     mCalibratingDome = false;
                     return;;
@@ -282,14 +269,7 @@ void X2Dome::deviceInfoDetailedDescription(BasicStringInterface& str) const
 
 void X2Dome::deviceInfoModel(BasicStringInterface& str)
 {
-    if(m_bLinked) {
-        char cModel[SERIAL_BUFFER_SIZE];
-        ddwDome.getModel(cModel, SERIAL_BUFFER_SIZE);
-        str = cModel;
-
-    }
-    else
-        str = "N/A";
+    str = "Digital Dome Works";
 }
 
 //
@@ -326,15 +306,15 @@ int X2Dome::dapiGetAzEl(double* pdAz, double* pdEl)
 
 int X2Dome::dapiGotoAzEl(double dAz, double dEl)
 {
-    int err;
+    int nErr = SB_OK;
 
     X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
 
-    err = ddwDome.gotoAzimuth(dAz);
-    if(err)
+    nErr = ddwDome.gotoAzimuth(dAz);
+    if(nErr)
         return ERR_CMDFAILED;
 
     else
@@ -356,7 +336,7 @@ int X2Dome::dapiAbort(void)
 
 int X2Dome::dapiOpen(void)
 {
-    int err;
+    int nErr = SB_OK;
     X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
@@ -365,8 +345,8 @@ int X2Dome::dapiOpen(void)
     if(!mHasShutterControl)
         return SB_OK;
 
-    err = ddwDome.openShutter();
-    if(err)
+    nErr = ddwDome.openShutter();
+    if(nErr)
         return ERR_CMDFAILED;
 
 	return SB_OK;
@@ -374,7 +354,7 @@ int X2Dome::dapiOpen(void)
 
 int X2Dome::dapiClose(void)
 {
-    int err;
+    int nErr = SB_OK;
     X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
@@ -383,8 +363,8 @@ int X2Dome::dapiClose(void)
     if(!mHasShutterControl)
         return SB_OK;
 
-    err = ddwDome.closeShutter();
-    if(err)
+    nErr = ddwDome.closeShutter();
+    if(nErr)
         return ERR_CMDFAILED;
 
 	return SB_OK;
@@ -392,7 +372,7 @@ int X2Dome::dapiClose(void)
 
 int X2Dome::dapiPark(void)
 {
-    int err;
+    int nErr = SB_OK;
     X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
@@ -400,13 +380,13 @@ int X2Dome::dapiPark(void)
 
     if(mHasShutterControl)
     {
-        err = ddwDome.closeShutter();
-        if(err)
+        nErr = ddwDome.closeShutter();
+        if(nErr)
             return ERR_CMDFAILED;
     }
 
-    err = ddwDome.parkDome();
-    if(err)
+    nErr = ddwDome.parkDome();
+    if(nErr)
         return ERR_CMDFAILED;
 
 	return SB_OK;
@@ -414,7 +394,7 @@ int X2Dome::dapiPark(void)
 
 int X2Dome::dapiUnpark(void)
 {
-    int err;
+    int nErr = SB_OK;
     X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
@@ -422,13 +402,13 @@ int X2Dome::dapiUnpark(void)
 
     if(mHasShutterControl)
     {
-        err = ddwDome.openShutter();
-        if(err)
+        nErr = ddwDome.openShutter();
+        if(nErr)
             return ERR_CMDFAILED;
     }
 
-    err = ddwDome.unparkDome();
-    if(err)
+    nErr = ddwDome.unparkDome();
+    if(nErr)
         return ERR_CMDFAILED;
 
 	return SB_OK;
@@ -436,14 +416,14 @@ int X2Dome::dapiUnpark(void)
 
 int X2Dome::dapiFindHome(void)
 {
-    int err;
+    int nErr = SB_OK;
     X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
 
-    err = ddwDome.goHome();
-    if(err)
+    nErr = ddwDome.goHome();
+    if(nErr)
         return ERR_CMDFAILED;
 
     return SB_OK;
@@ -451,21 +431,21 @@ int X2Dome::dapiFindHome(void)
 
 int X2Dome::dapiIsGotoComplete(bool* pbComplete)
 {
-    int err;
+    int nErr = SB_OK;
     X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
 
-    err = ddwDome.isGoToComplete(*pbComplete);
-    if(err)
+    nErr = ddwDome.isGoToComplete(*pbComplete);
+    if(nErr)
         return ERR_CMDFAILED;
     return SB_OK;
 }
 
 int X2Dome::dapiIsOpenComplete(bool* pbComplete)
 {
-    int err;
+    int nErr = SB_OK;
     X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
@@ -477,8 +457,8 @@ int X2Dome::dapiIsOpenComplete(bool* pbComplete)
         return SB_OK;
     }
 
-    err = ddwDome.isOpenComplete(*pbComplete);
-    if(err)
+    nErr = ddwDome.isOpenComplete(*pbComplete);
+    if(nErr)
         return ERR_CMDFAILED;
 
     return SB_OK;
@@ -486,7 +466,7 @@ int X2Dome::dapiIsOpenComplete(bool* pbComplete)
 
 int	X2Dome::dapiIsCloseComplete(bool* pbComplete)
 {
-    int err;
+    int nErr = SB_OK;
     X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
@@ -498,8 +478,8 @@ int	X2Dome::dapiIsCloseComplete(bool* pbComplete)
         return SB_OK;
     }
 
-    err = ddwDome.isCloseComplete(*pbComplete);
-    if(err)
+    nErr = ddwDome.isCloseComplete(*pbComplete);
+    if(nErr)
         return ERR_CMDFAILED;
 
     return SB_OK;
@@ -507,14 +487,14 @@ int	X2Dome::dapiIsCloseComplete(bool* pbComplete)
 
 int X2Dome::dapiIsParkComplete(bool* pbComplete)
 {
-    int err;
+    int nErr = SB_OK;
     X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
 
-    err = ddwDome.isParkComplete(*pbComplete);
-    if(err)
+    nErr = ddwDome.isParkComplete(*pbComplete);
+    if(nErr)
         return ERR_CMDFAILED;
 
     return SB_OK;
@@ -522,14 +502,14 @@ int X2Dome::dapiIsParkComplete(bool* pbComplete)
 
 int X2Dome::dapiIsUnparkComplete(bool* pbComplete)
 {
-    int err;
+    int nErr = SB_OK;
     X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
 
-    err = ddwDome.isUnparkComplete(*pbComplete);
-    if(err)
+    nErr = ddwDome.isUnparkComplete(*pbComplete);
+    if(nErr)
         return ERR_CMDFAILED;
 
     return SB_OK;
@@ -537,14 +517,14 @@ int X2Dome::dapiIsUnparkComplete(bool* pbComplete)
 
 int X2Dome::dapiIsFindHomeComplete(bool* pbComplete)
 {
-    int err;
+    int nErr = SB_OK;
     X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
 
-    err = ddwDome.isFindHomeComplete(*pbComplete);
-    if(err)
+    nErr = ddwDome.isFindHomeComplete(*pbComplete);
+    if(nErr)
         return ERR_CMDFAILED;
 
     return SB_OK;
@@ -552,15 +532,15 @@ int X2Dome::dapiIsFindHomeComplete(bool* pbComplete)
 
 int X2Dome::dapiSync(double dAz, double dEl)
 {
-    int err;
+    int nErr = SB_OK;
 
     X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
 
-    err = ddwDome.syncDome(dAz, dEl);
-    if (err)
+    nErr = ddwDome.syncDome(dAz, dEl);
+    if(nErr)
         return ERR_CMDFAILED;
 	return SB_OK;
 }

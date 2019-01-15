@@ -7,15 +7,29 @@
 
 #ifndef __DDW_DOME__
 #define __DDW_DOME__
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <ctype.h>
+#include <memory.h>
+#ifdef SB_MAC_BUILD
+#include <unistd.h>
+#endif
 #include <math.h>
 #include <string.h>
+
 #include <string>
 #include <vector>
 #include <sstream>
 #include <iostream>
+
 #include "../../licensedinterfaces/sberrorx.h"
 #include "../../licensedinterfaces/serxinterface.h"
 #include "../../licensedinterfaces/loggerinterface.h"
+
+#include "StopWatch.h"
+
+#define DDW_DEBUG 2
 
 #define SERIAL_BUFFER_SIZE 4096
 #define MAX_TIMEOUT 5000
@@ -62,7 +76,7 @@ public:
 
     int        Connect(const char *szPort);
     void        Disconnect(void);
-    bool        IsConnected(void) { return bIsConnected; }
+    bool        IsConnected(void) { return m_bIsConnected; }
 
     void        SetSerxPointer(SerXInterface *p) { pSerx = p; }
     void        setLogger(LoggerInterface *pLogger) { mLogger = pLogger; };
@@ -106,7 +120,10 @@ public:
 
 protected:
     
-    int             readResponse(char *respBuffer, int bufferLen);
+    int             domeCommand(const char *szCmd, char *szResult, int nResultMaxLen);
+    int             readResponse(char *szRrespBuffer, int nBufferLen);
+    int             getInfRecord();
+
     int             getDomeAz(double &domeAz);
     int             getDomeEl(double &domeEl);
     int             getDomeHomeAz(double &Az);
@@ -116,39 +133,48 @@ protected:
     bool            isDomeMoving();
     bool            isDomeAtHome();
     
-    int             domeCommand(const char *cmd, char *result, int resultMaxLen);
 
     int             parseGINF(char *ginf);
     int             parseFields(const char *pszIn, std::vector<std::string> &svFields, const char &cSeparator);
     
     
-    LoggerInterface *mLogger;
-    bool            bDebugLog;
+    LoggerInterface *mLogger;    
+    bool            m_bIsConnected;
+    bool            m_bHomed;
+    bool            m_bParked;
+    bool            m_bCalibrating;
+    bool            m_bIsHoming;
+    bool            m_bIsGoToing;
+    int             m_nNbStepPerRev;
+    double          m_dShutterBatteryVolts;
+    double          m_dShutterBatteryPercent;
+    double          m_dHomeAz;
     
-    bool            bIsConnected;
-    bool            mHomed;
-    bool            mParked;
-    bool            bCalibrating;
-    
-    int             mNbStepPerRev;
-    double          mShutterBatteryVolts;
-    double          mShutterBatteryPercent;
-    double          mHomeAz;
-    
-    double          mCurrentAzPosition;
-    double          mCurrentElPosition;
+    double          m_dCurrentAzPosition;
+    double          m_dCurrentElPosition;
 
-    double          mGotoAz;
+    double          m_dGotoAz;
     
     SerXInterface   *pSerx;
     
-    char            firmwareVersion[SERIAL_BUFFER_SIZE];
-    int             mShutterState;
-    bool            mHasShutter;
-    bool            mShutterOpened;
+    char            m_szFirmwareVersion[SERIAL_BUFFER_SIZE];
+    int             m_nShutterState;
+    bool            m_bHasShutter;
+    bool            m_bShutterOpened;
 
     char            mLogBuffer[ND_LOG_BUFFER_SIZE];
     std::vector<std::string>    m_svGinf;
+
+    CStopWatch      timer;
+    float           m_dInfRefreshInterval;;
+
+#ifdef DDW_DEBUG
+    std::string m_sLogfilePath;
+    // timestamp for logs
+    char *timestamp;
+    time_t ltime;
+    FILE *Logfile;      // LogFile
+#endif
 
 
 };

@@ -1,6 +1,20 @@
+#include <stdio.h>
+#include <string.h>
+
 #include "ddwDome.h"
-#include "../../licensedinterfaces/domedriverinterface.h"
+
+#include "../../licensedinterfaces/sberrorx.h"
+#include "../../licensedinterfaces/basicstringinterface.h"
+#include "../../licensedinterfaces/serxinterface.h"
+#include "../../licensedinterfaces/basiciniutilinterface.h"
+#include "../../licensedinterfaces/theskyxfacadefordriversinterface.h"
+#include "../../licensedinterfaces/sleeperinterface.h"
+#include "../../licensedinterfaces/loggerinterface.h"
+#include "../../licensedinterfaces/basiciniutilinterface.h"
+#include "../../licensedinterfaces/mutexinterface.h"
+#include "../../licensedinterfaces/tickcountinterface.h"
 #include "../../licensedinterfaces/serialportparams2interface.h"
+#include "../../licensedinterfaces/domedriverinterface.h"
 #include "../../licensedinterfaces/modalsettingsdialoginterface.h"
 #include "../../licensedinterfaces/x2guiinterface.h"
 
