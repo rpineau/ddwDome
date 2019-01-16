@@ -1,4 +1,5 @@
 *.xcuserdatad
+*.xcworkspace
 .DS_Store
 build
 *.opensdf
@@ -7,3 +8,6 @@ build
 Release
 *.pkg
 *.so
+*.pkg
+*.VC.db
+*.exe
