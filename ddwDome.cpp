@@ -31,7 +31,6 @@ CddwDome::CddwDome()
     m_bHomed = false;
 
     memset(m_szFirmwareVersion,0,SERIAL_BUFFER_SIZE);
-    memset(mLogBuffer,0,ND_LOG_BUFFER_SIZE);
 
     timer.Reset();
     m_dInfRefreshInterval = 2;
@@ -171,7 +170,8 @@ int CddwDome::readResponse(char *respBuffer, int bufferLen)
             fprintf(Logfile, "[%s] [CddwDome::readResponse] readFile Timeout\n", timestamp);
             fflush(Logfile);
 #endif
-            nErr = DDW_BAD_CMD_RESPONSE;
+            nErr = DDW_TIMEOUT;
+            return nErr;
             break;
         }
         totalBytesRead += nBytesRead;
@@ -197,33 +197,40 @@ int CddwDome::domeCommand(const char *cmd, char *result, int resultMaxLen)
     int nErr = DDW_OK;
     char resp[SERIAL_BUFFER_SIZE];
     unsigned long  nBytesWrite;
+    int nNbTimeout = 0;
+    int nMaxNbTimeout = 3;
 
-    pSerx->purgeTxRx();
+    do {
+        pSerx->purgeTxRx();
+    #if defined DDW_DEBUG && DDW_DEBUG >= 2
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CddwDome::domeCommand] Sending %s\n", timestamp, cmd);
+        fflush(Logfile);
+    #endif
 
-#if defined DDW_DEBUG && DDW_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CddwDome::domeCommand] Sending %s\n", timestamp, cmd);
-    fflush(Logfile);
-#endif
-
-    nErr = pSerx->writeFile((void *)cmd, strlen(cmd), nBytesWrite);
-    pSerx->flushTx();
-    if(nErr)
-        return nErr;
-    // read response
-#if defined DDW_DEBUG && DDW_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CddwDome::domeCommand] Getting response.\n", timestamp);
-    fflush(Logfile);
-#endif
-    nErr = readResponse(resp, SERIAL_BUFFER_SIZE);
-    if(nErr)
-        return nErr;
-
+        nErr = pSerx->writeFile((void *)cmd, strlen(cmd), nBytesWrite);
+        pSerx->flushTx();
+        if(nErr)
+            return nErr;
+        // read response
+    #if defined DDW_DEBUG && DDW_DEBUG >= 2
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CddwDome::domeCommand] Getting response.\n", timestamp);
+        fflush(Logfile);
+    #endif
+        nErr = readResponse(resp, SERIAL_BUFFER_SIZE);
+        if (nErr == DDW_TIMEOUT) {
+            if(nNbTimeout >= nMaxNbTimeout) // make sure we don't end up in an infinite loop
+                return ERR_CMDFAILED;
+            nNbTimeout++;
+            m_pSleeper->sleep(1500);    // wait 1.5 second and resend command
+        }
+    } while (nErr == DDW_TIMEOUT);
+    
     if(result)
         strncpy(result, &resp[1], resultMaxLen);
 
@@ -231,26 +238,39 @@ int CddwDome::domeCommand(const char *cmd, char *result, int resultMaxLen)
 
 }
 
+// read all the response, only keep the last one.
+int CddwDome::readAllResponse(char *respBuffer, int bufferLen)
+{
+    int nErr = DDW_OK;
+    int nbByteWaiting = 0;
+    do {
+        pSerx->bytesWaitingRx(nbByteWaiting);
+        if(nbByteWaiting)
+            nErr = readResponse(respBuffer, bufferLen);
+    } while(nbByteWaiting);
+
+    return nErr;
+}
+
 int CddwDome::getDomeAz(double &domeAz)
 {
     int nErr = DDW_OK;
-    double domeAzticks;
-    double domeTicksPerRev;
+
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    if(m_bCalibrating)
+    if(m_bCalibrating || m_bIsHoming || m_bIsGoToing) {
+        domeAz = m_dCurrentAzPosition;  // should be updated when checking if dome is moving
         return nErr;
-
+    }
     nErr = getInfRecord();
     if(nErr)
         return nErr;
 
-    domeAzticks =  std::stof(m_svGinf[gADAZ]);
-    domeTicksPerRev = std::stof(m_svGinf[gDticks]);
+    m_nNbStepPerRev = std::stof(m_svGinf[gDticks]);
+    m_dCurrentAzPosition = (359.0/m_nNbStepPerRev) * std::stof(m_svGinf[gADAZ]);
 
-    domeAz = (359.0/domeTicksPerRev) * domeAzticks;
-    m_dCurrentAzPosition = domeAz;
+    domeAz = m_dCurrentAzPosition;
 
     return nErr;
 }
@@ -282,28 +302,24 @@ int CddwDome::getDomeEl(double &domeEl)
 int CddwDome::getDomeHomeAz(double &Az)
 {
     int nErr = DDW_OK;
-    double HomeAzticks;
-    double domeTicksPerRev;
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    if(m_bCalibrating)
+    if(m_bCalibrating || m_bIsHoming || m_bIsGoToing)
         return nErr;
 
     nErr = getInfRecord();
     if(nErr)
         return nErr;
 
-    HomeAzticks = std::stof(m_svGinf[gHomeAz]);
-    domeTicksPerRev = std::stof(m_svGinf[gDticks]);
+    m_nNbStepPerRev = std::stof(m_svGinf[gDticks]);
 
-    Az = (359.0/domeTicksPerRev) * HomeAzticks;
+    Az = (359.0/m_nNbStepPerRev) * std::stof(m_svGinf[gHomeAz]);
     m_dHomeAz = Az;
 
     return nErr;
 }
-
 
 
 int CddwDome::getShutterState(int &state)
@@ -314,12 +330,11 @@ int CddwDome::getShutterState(int &state)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    if(m_bCalibrating)
-        return nErr;
-
-    nErr = getInfRecord();
-    if(nErr)
-        return nErr;
+    if(!m_bCalibrating && !m_bIsHoming && !m_bIsGoToing)  {
+        nErr = getInfRecord();
+        if(nErr)
+            return nErr;
+    }
 
     shutterState = std::stoi(m_svGinf[gShutter]);
 
@@ -340,7 +355,7 @@ int CddwDome::getShutterState(int &state)
             
     }
 
-    // state = atoi(resp);
+    state = shutterState;
 
     return nErr;
 }
@@ -353,9 +368,11 @@ int CddwDome::getDomeStepPerRev(int &stepPerRev)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    nErr = getInfRecord();
-    if(nErr)
-        return nErr;
+    if(!m_bCalibrating && !m_bIsHoming && !m_bIsGoToing)  {
+        nErr = getInfRecord();
+        if(nErr)
+            return nErr;
+    }
 
     stepPerRev =  std::stoi(m_svGinf[gDticks]);
 
@@ -368,26 +385,38 @@ bool CddwDome::isDomeMoving()
 {
     bool isMoving;
     int nErr = DDW_OK;
+    int nConvErr = DDW_OK;
     char resp[SERIAL_BUFFER_SIZE];
+    std::vector<std::string> vFieldsData;
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
     isMoving = false;
 
-    nErr = readResponse(resp, SERIAL_BUFFER_SIZE);
+    nErr = readAllResponse(resp, SERIAL_BUFFER_SIZE);
     if(nErr)
         return nErr;
     switch(resp[0]) {
         case 'L':
         case 'R':
         case 'T':
+            isMoving  = true;
+            break;
         case 'P':
             isMoving  = true;
+            nConvErr = parseFields(resp, vFieldsData, 'P');
+            if(!nConvErr) {
+                m_dCurrentAzPosition = (359.0/m_nNbStepPerRev) * std::stof(vFieldsData[0]);
+            }
             break;
 
         case 'V':   // GINF
+            parseGINF(resp);
             isMoving  = false;
+            m_nNbStepPerRev = std::stof(m_svGinf[gDticks]);
+            m_dCurrentAzPosition = (359.0/m_nNbStepPerRev) * std::stof(m_svGinf[gADAZ]);
+
             break;
 
         default :
@@ -408,7 +437,7 @@ bool CddwDome::isDomeAtHome()
     if(!m_bIsHoming)
         return false;
 
-    nErr = readResponse(resp, SERIAL_BUFFER_SIZE);
+    nErr = readAllResponse(resp, SERIAL_BUFFER_SIZE);
     if(nErr)
         return nErr;
     switch(resp[0]) {
@@ -416,11 +445,12 @@ bool CddwDome::isDomeAtHome()
         case 'R':
         case 'T':
         case 'P':
-            m_bHomed  = true;
+            m_bHomed  = false;
             break;
 
         case 'V':   // GINF
-            m_bHomed  = false;
+            m_bHomed  = true;
+            m_bIsHoming = false;
             break;
 
         default :
@@ -444,8 +474,8 @@ int CddwDome::parkDome()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    if(m_bCalibrating)
-        return SB_OK;
+    if(m_bCalibrating || m_bIsHoming || m_bIsGoToing)
+        return ERR_COMMANDINPROGRESS;
 
     nErr = goHome();
     if(nErr)
@@ -459,6 +489,9 @@ int CddwDome::parkDome()
 int CddwDome::unparkDome()
 {
     int nErr = DDW_OK;
+
+    if(m_bCalibrating || m_bIsHoming || m_bIsGoToing)
+        return ERR_COMMANDINPROGRESS;
 
     m_bParked = false;
     nErr = goHome();
@@ -514,7 +547,7 @@ int CddwDome::openShutter()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    if(m_bCalibrating)
+    if(m_bCalibrating || m_bIsHoming || m_bIsGoToing)
         return ERR_COMMANDINPROGRESS;
 
     nErr = domeCommand("GOPN", resp, SERIAL_BUFFER_SIZE);
@@ -532,7 +565,7 @@ int CddwDome::closeShutter()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    if(m_bCalibrating)
+    if(m_bCalibrating || m_bIsHoming || m_bIsGoToing)
         return ERR_COMMANDINPROGRESS;
 
     nErr = domeCommand("GCLS", resp, SERIAL_BUFFER_SIZE);
@@ -549,8 +582,15 @@ int CddwDome::getFirmwareVersion(char *version, int strMaxLen)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    if(m_bCalibrating)
-        return SB_OK;
+    if(strlen(m_szFirmwareVersion)){
+        strncpy(version, m_szFirmwareVersion, strMaxLen);
+        return nErr;
+    }
+
+    if(m_bCalibrating || m_bIsHoming || m_bIsGoToing) {
+        strncpy(version, "NA", strMaxLen);
+        return nErr;
+    }
 
     nErr = getInfRecord();
     if(nErr)
@@ -569,8 +609,8 @@ int CddwDome::goHome()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    if(m_bCalibrating)
-        return SB_OK;
+    if(m_bCalibrating || m_bIsHoming || m_bIsGoToing)
+        return ERR_COMMANDINPROGRESS;
 
     nErr = domeCommand("GHOM", resp, SERIAL_BUFFER_SIZE);
     if(nErr)
@@ -601,6 +641,9 @@ int CddwDome::calibrate()
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
+
+    if(m_bCalibrating || m_bIsHoming || m_bIsGoToing)
+        return ERR_COMMANDINPROGRESS;
 
     nErr = domeCommand("GTRN", resp, SERIAL_BUFFER_SIZE);
     if(nErr)
@@ -637,17 +680,19 @@ int CddwDome::isGoToComplete(bool &bComplete)
     if(!m_bIsGoToing)
         return SB_OK;
 
-    nErr = getDomeAz(dDomeAz);
-    if(nErr)
-        return nErr;
-
     if(isDomeMoving()) {
         return nErr;
     }
 
+    nErr = getDomeAz(dDomeAz);
+    if(nErr)
+        return nErr;
 
-    if (ceil(m_dGotoAz) == ceil(dDomeAz))
+
+    if (ceil(m_dGotoAz) == ceil(dDomeAz)) {
         bComplete = true;
+        m_bIsGoToing = false;
+    }
     else {
         // we're not moving and we're not at the final destination !!!
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
@@ -671,6 +716,9 @@ int CddwDome::isOpenComplete(bool &complete)
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
+
+    if(m_bCalibrating || m_bIsHoming || m_bIsGoToing)
+        return nErr;
 
     nErr = getShutterState(state);
     if(nErr)
@@ -697,6 +745,9 @@ int CddwDome::isCloseComplete(bool &complete)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+    if(m_bCalibrating || m_bIsHoming || m_bIsGoToing)
+        return nErr;
+
     nErr = getShutterState(state);
     if(nErr)
         return ERR_CMDFAILED;
@@ -718,7 +769,16 @@ int CddwDome::isCloseComplete(bool &complete)
 int CddwDome::isParkComplete(bool &bComplete)
 {
     int nErr = DDW_OK;
+
+    if(!m_bIsConnected)
+        return NOT_CONNECTED;
+
     nErr = isFindHomeComplete(bComplete);
+    if(nErr)
+        return nErr;
+
+    if(bComplete)
+        m_bParked = true;
     return nErr;
 }
 
@@ -740,7 +800,7 @@ int CddwDome::isUnparkComplete(bool &bComplete)
     return nErr;
 }
 
-int CddwDome::isFindHomeComplete(bool &complete)
+int CddwDome::isFindHomeComplete(bool &bComplete)
 {
     int nErr = DDW_OK;
 
@@ -749,13 +809,13 @@ int CddwDome::isFindHomeComplete(bool &complete)
 
     if(isDomeMoving()) {
         m_bHomed = false;
-        complete = false;
+        bComplete = false;
         return nErr;
     }
 
     if(isDomeAtHome()){
         m_bHomed = true;
-        complete = true;
+        bComplete = true;
     }
     else {
         // we're not moving and we're not at the home position !!!
@@ -766,7 +826,7 @@ int CddwDome::isFindHomeComplete(bool &complete)
         fprintf(Logfile, "[%s] [CddwDome::isFindHomeComplete] Not moving and not at home !!!\n", timestamp);
         fflush(Logfile);
 #endif
-        complete = false;
+        bComplete = false;
         m_bHomed = false;
         m_bParked = false;
         nErr = ERR_CMDFAILED;
@@ -816,12 +876,22 @@ int CddwDome::isCalibratingComplete(bool &complete)
 
 int CddwDome::abortCurrentCommand()
 {
+    int nErr;
+    char resp[SERIAL_BUFFER_SIZE];
+
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
     m_bCalibrating = false;
+    m_bIsHoming = false;
+    m_bIsGoToing = false;
 
-    return (domeCommand("STOP\r", NULL, SERIAL_BUFFER_SIZE));
+    nErr = domeCommand("STOP", resp, SERIAL_BUFFER_SIZE);
+    if(nErr)
+        return nErr;
+    parseGINF(resp);
+
+    return nErr;
 }
 
 int CddwDome::getInfRecord()

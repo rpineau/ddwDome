@@ -25,7 +25,7 @@ X2Dome::X2Dome(const char* pszSelection,
     mCalibratingDome = false;
 
     ddwDome.SetSerxPointer(pSerX);
-    ddwDome.setLogger(pLogger);
+    ddwDome.setSleeper(pSleeper);
 
     if (m_pIniUtil)
     {   

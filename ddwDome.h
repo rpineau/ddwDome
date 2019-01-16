@@ -26,13 +26,14 @@
 #include "../../licensedinterfaces/sberrorx.h"
 #include "../../licensedinterfaces/serxinterface.h"
 #include "../../licensedinterfaces/loggerinterface.h"
+#include "../../licensedinterfaces/sleeperinterface.h"
 
 #include "StopWatch.h"
 
 #define DDW_DEBUG 2
 
 #define SERIAL_BUFFER_SIZE 4096
-#define MAX_TIMEOUT 5000
+#define MAX_TIMEOUT 200
 #define ND_LOG_BUFFER_SIZE 256
 
 // field indexes in GINF
@@ -64,7 +65,7 @@
 
 // error codes
 // Error code
-enum ddwDomeErrors {DDW_OK=0, NOT_CONNECTED, DDW_CANT_CONNECT, DDW_BAD_CMD_RESPONSE, COMMAND_FAILED};
+enum ddwDomeErrors {DDW_OK=0, NOT_CONNECTED, DDW_CANT_CONNECT, DDW_BAD_CMD_RESPONSE, DDW_TIMEOUT, COMMAND_FAILED};
 //  0=indeterminate, 1=closed, 2=open
 enum ddwDomeShutterState {UNKNOWN=0, CLOSED, OPEN};
 
@@ -79,7 +80,7 @@ public:
     bool        IsConnected(void) { return m_bIsConnected; }
 
     void        SetSerxPointer(SerXInterface *p) { pSerx = p; }
-    void        setLogger(LoggerInterface *pLogger) { mLogger = pLogger; };
+    void        setSleeper(SleeperInterface *pSleeper) { m_pSleeper = pSleeper; };
 
     // Dome commands
     int syncDome(double dAz, double dEl);
@@ -122,6 +123,7 @@ protected:
     
     int             domeCommand(const char *szCmd, char *szResult, int nResultMaxLen);
     int             readResponse(char *szRrespBuffer, int nBufferLen);
+    int             readAllResponse(char *respBuffer, int bufferLen);   // read all the response, only keep the last one.
     int             getInfRecord();
 
     int             getDomeAz(double &domeAz);
@@ -156,13 +158,13 @@ protected:
     double          m_dGotoAz;
     
     SerXInterface   *pSerx;
-    
+    SleeperInterface    *m_pSleeper;
+
     char            m_szFirmwareVersion[SERIAL_BUFFER_SIZE];
     int             m_nShutterState;
     bool            m_bHasShutter;
     bool            m_bShutterOpened;
 
-    char            mLogBuffer[ND_LOG_BUFFER_SIZE];
     std::vector<std::string>    m_svGinf;
 
     CStopWatch      timer;
