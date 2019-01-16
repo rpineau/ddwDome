@@ -26,14 +26,12 @@ fi
 
 cp "./domelist ddwDome.txt" "$TheSkyX_Path/Resources/Common/Miscellaneous Files/"
 cp "./ddwDome.ui" "$TheSkyX_Path/Resources/Common/PlugInsARM32/DomePlugIns/"
-cp "./ddwDome.png" "$TheSkyX_Path/Resources/Common/PlugInsARM32/DomePlugIns/"
 cp "./libddwDome.so" "$TheSkyX_Path/Resources/Common/PlugInsARM32/DomePlugIns/"
 
 app_owner=`/usr/bin/stat -c "%u" "$TheSkyX_Path" | xargs id -n -u`
 if [ ! -z "$app_owner" ]; then
 	chown $app_owner "$TheSkyX_Path/Resources/Common/Miscellaneous Files/domelist ddwDome.txt"
 	chown $app_owner "$TheSkyX_Path/Resources/Common/PlugInsARM32/DomePlugIns/ddwDome.ui"
-	chown $app_owner "$TheSkyX_Path/Resources/Common/PlugInsARM32/DomePlugIns/ddwDome.png"
 	chown $app_owner "$TheSkyX_Path/Resources/Common/PlugInsARM32/DomePlugIns/libddwDome.so"
 fi
 chmod  755 "$TheSkyX_Path/Resources/Common/PlugInsARM32/DomePlugIns/libddwDome.so"

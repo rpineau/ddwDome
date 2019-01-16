@@ -6,14 +6,14 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>369</width>
-    <height>256</height>
+    <width>298</width>
+    <height>225</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
-    <width>344</width>
-    <height>256</height>
+    <width>0</width>
+    <height>0</height>
    </size>
   </property>
   <property name="maximumSize">
@@ -23,7 +23,7 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>Rigel rotation drive unit settings</string>
+   <string>TI Digital Dome Works</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_5">
    <item>
@@ -54,34 +54,53 @@
        <rect>
         <x>8</x>
         <y>40</y>
-        <width>313</width>
-        <height>73</height>
+        <width>256</width>
+        <height>112</height>
        </rect>
       </property>
       <property name="title">
-       <string>TI DDW</string>
+       <string>Digital Dome Works</string>
       </property>
       <widget class="QPushButton" name="pushButton">
        <property name="geometry">
         <rect>
-         <x>8</x>
-         <y>24</y>
+         <x>56</x>
+         <y>32</y>
          <width>136</width>
-         <height>32</height>
+         <height>24</height>
         </rect>
        </property>
        <property name="text">
-        <string>Calibrate</string>
+        <string>Train</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label">
+       <property name="geometry">
+        <rect>
+         <x>8</x>
+         <y>64</y>
+         <width>240</width>
+         <height>41</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; color:#fc0107;&quot;&gt;Before traning the Digital Dome Works, you need to align the dome due north.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
        </property>
       </widget>
      </widget>
      <widget class="QPushButton" name="pushButtonOK">
       <property name="geometry">
        <rect>
-        <x>224</x>
-        <y>128</y>
+        <x>160</x>
+        <y>168</y>
         <width>98</width>
-        <height>32</height>
+        <height>24</height>
        </rect>
       </property>
       <property name="text">
@@ -94,10 +113,10 @@
      <widget class="QPushButton" name="pushButtonCancel">
       <property name="geometry">
        <rect>
-        <x>120</x>
-        <y>128</y>
+        <x>56</x>
+        <y>168</y>
         <width>98</width>
-        <height>32</height>
+        <height>24</height>
        </rect>
       </property>
       <property name="text">
@@ -107,9 +126,9 @@
      <widget class="QLabel" name="label_4">
       <property name="geometry">
        <rect>
-        <x>100</x>
-        <y>16</y>
-        <width>129</width>
+        <x>72</x>
+        <y>8</y>
+        <width>136</width>
         <height>16</height>
        </rect>
       </property>

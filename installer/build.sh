@@ -2,7 +2,6 @@
 
 mkdir -p ROOT/tmp/ddwDome_X2/
 cp "../ddwDome.ui" ROOT/tmp/ddwDome_X2/
-cp "../Pulsar.png" ROOT/tmp/ddwDome_X2/
 cp "../domelist ddwDome.txt" ROOT/tmp/ddwDome_X2/
 cp "../build/Release/libddwDome.dylib" ROOT/tmp/ddwDome_X2/
 
