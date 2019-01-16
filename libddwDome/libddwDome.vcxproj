@@ -152,6 +152,7 @@
   <ItemGroup>
     <ClInclude Include="..\main.h" />
     <ClInclude Include="..\ddwDome.h" />
+    <ClInclude Include="..\StopWatch.h" />
     <ClInclude Include="..\x2dome.h" />
   </ItemGroup>
   <ItemGroup>

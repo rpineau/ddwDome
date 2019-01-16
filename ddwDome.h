@@ -12,9 +12,15 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <memory.h>
+
 #ifdef SB_MAC_BUILD
 #include <unistd.h>
 #endif
+
+#ifdef SB_WIN_BUILD
+#include <time.h>
+#endif
+
 #include <math.h>
 #include <string.h>
 
