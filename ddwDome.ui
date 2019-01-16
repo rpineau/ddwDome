@@ -107,36 +107,14 @@
      <widget class="QLabel" name="label_4">
       <property name="geometry">
        <rect>
-        <x>96</x>
+        <x>100</x>
         <y>16</y>
-        <width>133</width>
+        <width>129</width>
         <height>16</height>
        </rect>
       </property>
       <property name="text">
        <string>© RTI-Zone.org, 2018</string>
-      </property>
-     </widget>
-     <widget class="QLabel" name="label_logo">
-      <property name="geometry">
-       <rect>
-        <x>76</x>
-        <y>14</y>
-        <width>16</width>
-        <height>16</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string/>
-      </property>
-      <property name="pixmap">
-       <pixmap>Pulsar.png</pixmap>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignCenter</set>
-      </property>
-      <property name="X2_PhotoFileName" stdset="0">
-       <string>Pulsar.png</string>
       </property>
      </widget>
     </widget>
