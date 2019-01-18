@@ -171,7 +171,7 @@ int CddwDome::domeCommand(const char *cmd, char *result, unsigned int resultMaxL
     } while (nErr == DDW_TIMEOUT);
     
     if(result)
-        strncpy(result, &resp[1], resultMaxLen);
+        strncpy(result, resp, resultMaxLen);
 
     return nErr;
 
