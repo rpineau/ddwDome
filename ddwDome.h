@@ -39,7 +39,7 @@
 #define DDW_DEBUG 2
 
 #define SERIAL_BUFFER_SIZE 4096
-#define MAX_TIMEOUT 200
+#define MAX_TIMEOUT 750
 #define ND_LOG_BUFFER_SIZE 256
 
 // field indexes in GINF
@@ -116,7 +116,6 @@ public:
     int getBatteryLevel();
 
     double getHomeAz();
-    int setHomeAz(double dAz);
 
     double getCurrentAz();
     double getCurrentEl();
@@ -127,9 +126,9 @@ public:
 
 protected:
     
-    int             domeCommand(const char *szCmd, char *szResult, int nResultMaxLen);
-    int             readResponse(char *szRrespBuffer, int nBufferLen);
-    int             readAllResponse(char *respBuffer, int bufferLen);   // read all the response, only keep the last one.
+    int             domeCommand(const char *szCmd, char *szResult, unsigned int nResultMaxLen);
+    int             readResponse(char *szRrespBuffer, unsigned int nBufferLen);
+    int             readAllResponse(char *respBuffer, unsigned int bufferLen);   // read all the response, only keep the last one.
     int             getInfRecord();
 
     int             getDomeAz(double &domeAz);

@@ -131,68 +131,7 @@ void CddwDome::Disconnect()
 }
 
 
-int CddwDome::readResponse(char *respBuffer, int bufferLen)
-{
-    int nErr = DDW_OK;
-    unsigned long nBytesRead = 0;
-    unsigned long totalBytesRead = 0;
-    char *bufPtr;
-
-    memset(respBuffer, 0, (size_t) bufferLen);
-    bufPtr = respBuffer;
-
-    do {
-        nErr = pSerx->readFile(bufPtr, 1, nBytesRead, MAX_TIMEOUT);
-        if(nErr) {
-#if defined DDW_DEBUG && DDW_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CddwDome::readResponse] readFile error : %d\n", timestamp, nErr);
-            fflush(Logfile);
-#endif
-            return nErr;
-        }
-
-#if defined DDW_DEBUG && DDW_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CddwDome::readResponse] respBuffer = %s\n", timestamp, respBuffer);
-        fflush(Logfile);
-#endif
-
-        if (nBytesRead !=1) {// timeout
-#if defined DDW_DEBUG && DDW_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CddwDome::readResponse] readFile Timeout\n", timestamp);
-            fflush(Logfile);
-#endif
-            nErr = DDW_TIMEOUT;
-            return nErr;
-            break;
-        }
-        totalBytesRead += nBytesRead;
-#if defined DDW_DEBUG && DDW_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CddwDome::readResponse] nBytesRead = %lu\n", timestamp, nBytesRead);
-        fflush(Logfile);
-#endif
-    } while (*bufPtr++ != 0x0D && totalBytesRead < bufferLen );
-
-
-    if(totalBytesRead)
-        *(bufPtr-1) = 0; //remove the \r
-
-    return nErr;
-}
-
-
-int CddwDome::domeCommand(const char *cmd, char *result, int resultMaxLen)
+int CddwDome::domeCommand(const char *cmd, char *result, unsigned int resultMaxLen)
 {
     int nErr = DDW_OK;
     char resp[SERIAL_BUFFER_SIZE];
@@ -238,11 +177,73 @@ int CddwDome::domeCommand(const char *cmd, char *result, int resultMaxLen)
 
 }
 
+int CddwDome::readResponse(char *respBuffer, unsigned int bufferLen)
+{
+    int nErr = DDW_OK;
+    unsigned long nBytesRead = 0;
+    unsigned long totalBytesRead = 0;
+    char *bufPtr;
+
+    memset(respBuffer, 0, (size_t) bufferLen);
+    bufPtr = respBuffer;
+
+    do {
+        nErr = pSerx->readFile(bufPtr, 1, nBytesRead, MAX_TIMEOUT);
+        if(nErr) {
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+            ltime = time(NULL);
+            timestamp = asctime(localtime(&ltime));
+            timestamp[strlen(timestamp) - 1] = 0;
+            fprintf(Logfile, "[%s] [CddwDome::readResponse] readFile error : %d\n", timestamp, nErr);
+            fflush(Logfile);
+#endif
+            return nErr;
+        }
+
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CddwDome::readResponse] respBuffer = %s\n", timestamp, respBuffer);
+        fflush(Logfile);
+#endif
+
+        if (nBytesRead !=1) {// timeout
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+            ltime = time(NULL);
+            timestamp = asctime(localtime(&ltime));
+            timestamp[strlen(timestamp) - 1] = 0;
+            fprintf(Logfile, "[%s] [CddwDome::readResponse] readFile Timeout\n", timestamp);
+            fflush(Logfile);
+#endif
+            nErr = DDW_TIMEOUT;
+            return nErr;
+            break;
+        }
+        totalBytesRead += nBytesRead;
+#if defined DDW_DEBUG && DDW_DEBUG >= 3
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CddwDome::readResponse] totalBytesRead = %lu\n", timestamp, totalBytesRead);
+        fprintf(Logfile, "[%s] [CddwDome::readResponse] respBuffer = %s\n", timestamp, respBuffer);
+        fflush(Logfile);
+#endif
+    } while (*bufPtr++ != 0x0D && totalBytesRead < bufferLen );
+
+
+    if(totalBytesRead)
+        *(bufPtr-1) = 0; //remove the \r
+
+    return nErr;
+}
+
 // read all the response, only keep the last one.
-int CddwDome::readAllResponse(char *respBuffer, int bufferLen)
+int CddwDome::readAllResponse(char *respBuffer, unsigned int bufferLen)
 {
     int nErr = DDW_OK;
     int nbByteWaiting = 0;
+
     do {
         pSerx->bytesWaitingRx(nbByteWaiting);
         if(nbByteWaiting)
@@ -263,14 +264,32 @@ int CddwDome::getDomeAz(double &domeAz)
         domeAz = m_dCurrentAzPosition;  // should be updated when checking if dome is moving
         return nErr;
     }
+
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::getDomeAz]\n", timestamp);
+    fflush(Logfile);
+#endif
+
+
     nErr = getInfRecord();
     if(nErr)
         return nErr;
 
-    m_nNbStepPerRev = std::stof(m_svGinf[gDticks]);
+    m_nNbStepPerRev = std::stoi(m_svGinf[gDticks]);
     m_dCurrentAzPosition = (359.0/m_nNbStepPerRev) * std::stof(m_svGinf[gADAZ]);
 
     domeAz = m_dCurrentAzPosition;
+
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::getDomeAz] m_dCurrentAzPosition = %3.2f\n", timestamp, m_dCurrentAzPosition);
+    fflush(Logfile);
+#endif
 
     return nErr;
 }
@@ -309,11 +328,19 @@ int CddwDome::getDomeHomeAz(double &Az)
     if(m_bCalibrating || m_bIsHoming || m_bIsGoToing)
         return nErr;
 
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::getDomeHomeAz]\n", timestamp);
+    fflush(Logfile);
+#endif
+
     nErr = getInfRecord();
     if(nErr)
         return nErr;
 
-    m_nNbStepPerRev = std::stof(m_svGinf[gDticks]);
+    m_nNbStepPerRev = std::stoi(m_svGinf[gDticks]);
 
     Az = (359.0/m_nNbStepPerRev) * std::stof(m_svGinf[gHomeAz]);
     m_dHomeAz = Az;
@@ -329,6 +356,15 @@ int CddwDome::getShutterState(int &state)
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
+
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::getShutterState]\n", timestamp);
+    fflush(Logfile);
+#endif
+
 
     if(!m_bCalibrating && !m_bIsHoming && !m_bIsGoToing)  {
         nErr = getInfRecord();
@@ -368,6 +404,14 @@ int CddwDome::getDomeStepPerRev(int &stepPerRev)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::getDomeStepPerRev]\n", timestamp);
+    fflush(Logfile);
+#endif
+
     if(!m_bCalibrating && !m_bIsHoming && !m_bIsGoToing)  {
         nErr = getInfRecord();
         if(nErr)
@@ -383,7 +427,7 @@ int CddwDome::getDomeStepPerRev(int &stepPerRev)
 
 bool CddwDome::isDomeMoving()
 {
-    bool isMoving;
+    bool bIsMoving;
     int nErr = DDW_OK;
     int nConvErr = DDW_OK;
     char resp[SERIAL_BUFFER_SIZE];
@@ -392,7 +436,16 @@ bool CddwDome::isDomeMoving()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    isMoving = false;
+    bIsMoving = false;
+
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::isDomeMoving]\n", timestamp);
+    fflush(Logfile);
+#endif
+
 
     nErr = readAllResponse(resp, SERIAL_BUFFER_SIZE);
     if(nErr)
@@ -401,10 +454,10 @@ bool CddwDome::isDomeMoving()
         case 'L':
         case 'R':
         case 'T':
-            isMoving  = true;
+            bIsMoving  = true;
             break;
         case 'P':
-            isMoving  = true;
+            bIsMoving  = true;
             nConvErr = parseFields(resp, vFieldsData, 'P');
             if(!nConvErr) {
                 m_dCurrentAzPosition = (359.0/m_nNbStepPerRev) * std::stof(vFieldsData[0]);
@@ -413,17 +466,26 @@ bool CddwDome::isDomeMoving()
 
         case 'V':   // GINF
             parseGINF(resp);
-            isMoving  = false;
-            m_nNbStepPerRev = std::stof(m_svGinf[gDticks]);
+            bIsMoving  = false;
+            m_nNbStepPerRev = std::stoi(m_svGinf[gDticks]);
             m_dCurrentAzPosition = (359.0/m_nNbStepPerRev) * std::stof(m_svGinf[gADAZ]);
 
             break;
 
         default :
-            isMoving  = false;
+            bIsMoving  = false;
             break;
     }
-    return isMoving;
+
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::isDomeMoving] isMoving = %s\n", timestamp, bIsMoving?"True":"False");
+    fflush(Logfile);
+#endif
+
+    return bIsMoving;
 }
 
 bool CddwDome::isDomeAtHome()
@@ -436,6 +498,14 @@ bool CddwDome::isDomeAtHome()
 
     if(!m_bIsHoming)
         return false;
+
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::isDomeAtHome]\n", timestamp);
+    fflush(Logfile);
+#endif
 
     nErr = readAllResponse(resp, SERIAL_BUFFER_SIZE);
     if(nErr)
@@ -458,6 +528,14 @@ bool CddwDome::isDomeAtHome()
             break;
     }
 
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::isDomeAtHome] m_bHomed = %s\n", timestamp, m_bHomed?"True":"False");
+    fflush(Logfile);
+#endif
+
     return m_bHomed;
   
 }
@@ -477,6 +555,14 @@ int CddwDome::parkDome()
     if(m_bCalibrating || m_bIsHoming || m_bIsGoToing)
         return ERR_COMMANDINPROGRESS;
 
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::parkDome]\n", timestamp);
+    fflush(Logfile);
+#endif
+
     nErr = goHome();
     if(nErr)
         return nErr;
@@ -493,6 +579,14 @@ int CddwDome::unparkDome()
     if(m_bCalibrating || m_bIsHoming || m_bIsGoToing)
         return ERR_COMMANDINPROGRESS;
 
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::unparkDome]\n", timestamp);
+    fflush(Logfile);
+#endif
+
     m_bParked = false;
     nErr = goHome();
     if(nErr)
@@ -502,7 +596,7 @@ int CddwDome::unparkDome()
     return nErr;
 }
 
-int CddwDome::gotoAzimuth(double newAz)
+int CddwDome::gotoAzimuth(double dNewAz)
 {
 
     int nErr = DDW_OK;
@@ -512,7 +606,15 @@ int CddwDome::gotoAzimuth(double newAz)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    snprintf(buf, SERIAL_BUFFER_SIZE, "G%03d", int(newAz));
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::gotoAzimuth] GoTo %3.2f\n", timestamp, dNewAz);
+    fflush(Logfile);
+#endif
+
+    snprintf(buf, SERIAL_BUFFER_SIZE, "G%03d", int(dNewAz));
     nErr = domeCommand(buf, resp, SERIAL_BUFFER_SIZE);
     if(nErr)
         return nErr;
@@ -521,12 +623,12 @@ int CddwDome::gotoAzimuth(double newAz)
         case 'R':
         case 'T':
             nErr = DDW_OK;
-            m_dGotoAz = newAz;
+            m_dGotoAz = dNewAz;
             break;
 
         case 'P':
             nErr = DDW_OK;
-            m_dGotoAz = newAz;
+            m_dGotoAz = dNewAz;
             break;
 
         default :
@@ -550,6 +652,14 @@ int CddwDome::openShutter()
     if(m_bCalibrating || m_bIsHoming || m_bIsGoToing)
         return ERR_COMMANDINPROGRESS;
 
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::openShutter]\n", timestamp);
+    fflush(Logfile);
+#endif
+
     nErr = domeCommand("GOPN", resp, SERIAL_BUFFER_SIZE);
     if(nErr)
         return nErr;
@@ -568,6 +678,14 @@ int CddwDome::closeShutter()
     if(m_bCalibrating || m_bIsHoming || m_bIsGoToing)
         return ERR_COMMANDINPROGRESS;
 
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::closeShutter]\n", timestamp);
+    fflush(Logfile);
+#endif
+
     nErr = domeCommand("GCLS", resp, SERIAL_BUFFER_SIZE);
     if(nErr)
         return nErr;
@@ -581,6 +699,14 @@ int CddwDome::getFirmwareVersion(char *version, int strMaxLen)
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
+
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::getFirmwareVersion] asking for firmware version from INF packet\n", timestamp);
+    fflush(Logfile);
+#endif
 
     if(strlen(m_szFirmwareVersion)){
         strncpy(version, m_szFirmwareVersion, strMaxLen);
@@ -596,7 +722,17 @@ int CddwDome::getFirmwareVersion(char *version, int strMaxLen)
     if(nErr)
         return nErr;
 
-    strcpy(version, m_svGinf[gVersion].c_str());
+    strncpy(version, m_svGinf[gVersion].c_str(), strMaxLen);
+    strncpy(m_szFirmwareVersion, version, SERIAL_BUFFER_SIZE);
+
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::getFirmwareVersion] Firmware version : %s\n", timestamp, m_szFirmwareVersion);
+    fflush(Logfile);
+#endif
+
     return nErr;
 }
 
@@ -611,6 +747,14 @@ int CddwDome::goHome()
 
     if(m_bCalibrating || m_bIsHoming || m_bIsGoToing)
         return ERR_COMMANDINPROGRESS;
+
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::goHome]\n", timestamp);
+    fflush(Logfile);
+#endif
 
     nErr = domeCommand("GHOM", resp, SERIAL_BUFFER_SIZE);
     if(nErr)
@@ -644,6 +788,14 @@ int CddwDome::calibrate()
 
     if(m_bCalibrating || m_bIsHoming || m_bIsGoToing)
         return ERR_COMMANDINPROGRESS;
+
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::calibrate]\n", timestamp);
+    fflush(Logfile);
+#endif
 
     nErr = domeCommand("GTRN", resp, SERIAL_BUFFER_SIZE);
     if(nErr)
@@ -684,6 +836,14 @@ int CddwDome::isGoToComplete(bool &bComplete)
         return nErr;
     }
 
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::isGoToComplete]\n", timestamp);
+    fflush(Logfile);
+#endif
+
     nErr = getDomeAz(dDomeAz);
     if(nErr)
         return nErr;
@@ -706,10 +866,18 @@ int CddwDome::isGoToComplete(bool &bComplete)
         nErr = ERR_CMDFAILED;
     }
 
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::isGoToComplete] bComplete = %s\n", timestamp, bComplete?"True":"False");
+    fflush(Logfile);
+#endif
+
     return nErr;
 }
 
-int CddwDome::isOpenComplete(bool &complete)
+int CddwDome::isOpenComplete(bool &bComplete)
 {
     int nErr = DDW_OK;
     int state;
@@ -719,25 +887,41 @@ int CddwDome::isOpenComplete(bool &complete)
 
     if(m_bCalibrating || m_bIsHoming || m_bIsGoToing)
         return nErr;
+
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::isOpenComplete]\n", timestamp);
+    fflush(Logfile);
+#endif
 
     nErr = getShutterState(state);
     if(nErr)
         return ERR_CMDFAILED;
     if(state == OPEN){
         m_bShutterOpened = true;
-        complete = true;
+        bComplete = true;
         m_dCurrentElPosition = 90.0;
     }
     else {
         m_bShutterOpened = false;
-        complete = false;
+        bComplete = false;
         m_dCurrentElPosition = 0.0;
     }
+
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::isOpenComplete] bComplete = %s\n", timestamp, bComplete?"True":"False");
+    fflush(Logfile);
+#endif
 
     return nErr;
 }
 
-int CddwDome::isCloseComplete(bool &complete)
+int CddwDome::isCloseComplete(bool &bComplete)
 {
     int nErr = DDW_OK;
     int state;
@@ -748,19 +932,35 @@ int CddwDome::isCloseComplete(bool &complete)
     if(m_bCalibrating || m_bIsHoming || m_bIsGoToing)
         return nErr;
 
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::isCloseComplete]\n", timestamp);
+    fflush(Logfile);
+#endif
+
     nErr = getShutterState(state);
     if(nErr)
         return ERR_CMDFAILED;
     if(state == CLOSED){
         m_bShutterOpened = false;
-        complete = true;
+        bComplete = true;
         m_dCurrentElPosition = 0.0;
     }
     else {
         m_bShutterOpened = true;
-        complete = false;
+        bComplete = false;
         m_dCurrentElPosition = 90.0;
     }
+
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::isOpenComplete] bComplete = %s\n", timestamp, bComplete?"True":"False");
+    fflush(Logfile);
+#endif
 
     return nErr;
 }
@@ -772,6 +972,14 @@ int CddwDome::isParkComplete(bool &bComplete)
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
+
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::isParkComplete]\n", timestamp);
+    fflush(Logfile);
+#endif
 
     nErr = isFindHomeComplete(bComplete);
     if(nErr)
@@ -788,6 +996,14 @@ int CddwDome::isUnparkComplete(bool &bComplete)
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
+
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::isUnparkComplete]\n", timestamp);
+    fflush(Logfile);
+#endif
 
     nErr = isFindHomeComplete(bComplete);
     if(nErr)
@@ -806,6 +1022,14 @@ int CddwDome::isFindHomeComplete(bool &bComplete)
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
+
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::isFindHomeComplete]\n", timestamp);
+    fflush(Logfile);
+#endif
 
     if(isDomeMoving()) {
         m_bHomed = false;
@@ -832,11 +1056,19 @@ int CddwDome::isFindHomeComplete(bool &bComplete)
         nErr = ERR_CMDFAILED;
     }
 
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::isFindHomeComplete] bComplete = %s\n", timestamp, bComplete?"True":"False");
+    fflush(Logfile);
+#endif
+
     return nErr;
 }
 
 
-int CddwDome::isCalibratingComplete(bool &complete)
+int CddwDome::isCalibratingComplete(bool &bComplete)
 {
     int nErr = DDW_OK;
     double dDomeAz = 0;
@@ -850,11 +1082,18 @@ int CddwDome::isCalibratingComplete(bool &complete)
     if(isDomeMoving()) {
         nErr = getDomeAz(dDomeAz);
         m_bHomed = false;
-        complete = false;
+        bComplete = false;
         return nErr;
     }
 
-    
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::isCalibratingComplete]\n", timestamp);
+    fflush(Logfile);
+#endif
+
     nErr = getDomeAz(dDomeAz);
     if(nErr)
         return nErr;
@@ -863,13 +1102,21 @@ int CddwDome::isCalibratingComplete(bool &complete)
         m_dCurrentAzPosition = m_dHomeAz;
         syncDome(m_dCurrentAzPosition, m_dCurrentElPosition);
         m_bHomed = true;
-        complete = true;
+        bComplete = true;
     }
 
     nErr = getDomeStepPerRev(m_nNbStepPerRev);
     m_bHomed = true;
-    complete = true;
+    bComplete = true;
     m_bCalibrating = false;
+
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::isCalibratingComplete] bComplete = %s\n", timestamp, bComplete?"True":"False");
+    fflush(Logfile);
+#endif
     return nErr;
 }
 
@@ -885,6 +1132,14 @@ int CddwDome::abortCurrentCommand()
     m_bCalibrating = false;
     m_bIsHoming = false;
     m_bIsGoToing = false;
+
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::abortCurrentCommand]\n", timestamp);
+    fflush(Logfile);
+#endif
 
     nErr = domeCommand("STOP", resp, SERIAL_BUFFER_SIZE);
     if(nErr)
@@ -902,13 +1157,29 @@ int CddwDome::getInfRecord()
     if(timer.GetElapsedSeconds() < m_dInfRefreshInterval)
         return nErr;
 
-    timer.Reset();
-    nErr = domeCommand("GINF", resp, SERIAL_BUFFER_SIZE);
-    if(nErr)
-        return nErr;
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::getInfRecord] Asking for INF record\n", timestamp);
+    fflush(Logfile);
+#endif
 
+    nErr = domeCommand("GINF", resp, SERIAL_BUFFER_SIZE);
+    if(nErr) {
+        timer.Reset();
+        return nErr;
+    }
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::getInfRecord] got INF record : %s \n", timestamp, resp);
+    fflush(Logfile);
+#endif
     // parse INF packet
     parseGINF(resp);
+    timer.Reset();
     return nErr;
 }
 
@@ -930,31 +1201,6 @@ double CddwDome::getHomeAz()
 
     return m_dHomeAz;
 }
-
-int CddwDome::setHomeAz(double dAz)
-{
-    int nErr = DDW_OK;
-    char buf[SERIAL_BUFFER_SIZE];
-    char resp[SERIAL_BUFFER_SIZE];
-
-    if(!m_bIsConnected)
-        return NOT_CONNECTED;
-
-    snprintf(buf, SERIAL_BUFFER_SIZE, "HOME %3.1f\r", dAz);
-    nErr = domeCommand(buf, resp, SERIAL_BUFFER_SIZE);
-    if(nErr)
-        return nErr;
-    if(strncmp(resp,"A",1) == 0) {
-        nErr = DDW_OK;
-    }
-    else {
-        nErr = DDW_BAD_CMD_RESPONSE;
-    }
-    m_dHomeAz = dAz;
-    return nErr;
-}
-
-
 
 double CddwDome::getCurrentAz()
 {
@@ -987,7 +1233,7 @@ int CddwDome::getCurrentShutterState()
 int CddwDome::parseGINF(char *ginf)
 {
     int nErr = DDW_OK;
-    int n;
+    unsigned int n;
     std::vector<std::string> vFieldsData;
 
     nErr = parseFields(ginf, vFieldsData, ',');
