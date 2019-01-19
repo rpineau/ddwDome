@@ -260,19 +260,25 @@ int CddwDome::getDomeAz(double &domeAz)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    if(m_bCalibrating || m_bIsHoming || m_bIsGoToing) {
+	if(m_bCalibrating || m_bIsHoming || m_bIsGoToing) {
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+		ltime = time(NULL);
+		timestamp = asctime(localtime(&ltime));
+		timestamp[strlen(timestamp) - 1] = 0;
+		fprintf(Logfile, "[%s] [CddwDome::getDomeAz] Other command in progress\n", timestamp);
+		fflush(Logfile);
+#endif
         domeAz = m_dCurrentAzPosition;  // should be updated when checking if dome is moving
         return nErr;
     }
 
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CddwDome::getDomeAz]\n", timestamp);
-    fflush(Logfile);
+	ltime = time(NULL);
+	timestamp = asctime(localtime(&ltime));
+	timestamp[strlen(timestamp) - 1] = 0;
+	fprintf(Logfile, "[%s] [CddwDome::getDomeAz]\n", timestamp);
+	fflush(Logfile);
 #endif
-
 
     nErr = getInfRecord();
     if(nErr)
@@ -365,7 +371,6 @@ int CddwDome::getShutterState(int &state)
     fflush(Logfile);
 #endif
 
-
     if(!m_bCalibrating && !m_bIsHoming && !m_bIsGoToing)  {
         nErr = getInfRecord();
         if(nErr)
@@ -386,7 +391,8 @@ int CddwDome::getShutterState(int &state)
         case UNKNOWN:
             m_bShutterOpened = false;
             break;
-        default:
+
+		default:
             m_bShutterOpened = false;
             
     }
@@ -469,7 +475,6 @@ bool CddwDome::isDomeMoving()
             bIsMoving  = false;
             m_nNbStepPerRev = std::stoi(m_svGinf[gDticks]);
             m_dCurrentAzPosition = (359.0/m_nNbStepPerRev) * std::stof(m_svGinf[gADAZ]);
-
             break;
 
         default :
@@ -519,8 +524,15 @@ bool CddwDome::isDomeAtHome()
             break;
 
         case 'V':   // GINF
-            m_bHomed  = true;
-            m_bIsHoming = false;
+			parseGINF(resp);
+			if(std::stoi(m_svGinf[gHome]) == AT_HOME) {
+				m_bHomed  = true;
+				m_bIsHoming = false;
+			}
+			else {
+				m_bHomed  = false;
+				m_bIsHoming = true;
+			}
             break;
 
         default :

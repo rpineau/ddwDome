@@ -75,6 +75,8 @@ enum ddwDomeErrors {DDW_OK=0, NOT_CONNECTED, DDW_CANT_CONNECT, DDW_BAD_CMD_RESPO
 //  0=indeterminate, 1=closed, 2=open
 enum ddwDomeShutterState {UNKNOWN=0, CLOSED, OPEN};
 
+enum ddwDomeHomeStatus {AT_HOME = 0, NOT_AT_HOME};
+
 class CddwDome
 {
 public:
