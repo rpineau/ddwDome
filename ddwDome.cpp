@@ -216,7 +216,11 @@ int CddwDome::readResponse(char *respBuffer, unsigned int bufferLen)
             fprintf(Logfile, "[%s] [CddwDome::readResponse] readFile Timeout\n", timestamp);
             fflush(Logfile);
 #endif
-            nErr = DDW_TIMEOUT;
+            if(totalBytesRead)    // some reponse do not end with \r\r
+                nErr = DDW_OK;
+            else
+                nErr = DDW_TIMEOUT; // no response at all, we'll need to retry
+
             return nErr;
             break;
         }
@@ -239,7 +243,7 @@ int CddwDome::readResponse(char *respBuffer, unsigned int bufferLen)
 }
 
 // read all the response, only keep the last one.
-int CddwDome::readAllResponse(char *respBuffer, unsigned int bufferLen)
+int CddwDome::readAllResponses(char *respBuffer, unsigned int bufferLen)
 {
     int nErr = DDW_OK;
     int nbByteWaiting = 0;
@@ -452,34 +456,52 @@ bool CddwDome::isDomeMoving()
     fflush(Logfile);
 #endif
 
+    // read as much as we can.
+    nErr = readAllResponses(resp, SERIAL_BUFFER_SIZE);
 
-    nErr = readAllResponse(resp, SERIAL_BUFFER_SIZE);
-    if(nErr)
-        return nErr;
-    switch(resp[0]) {
-        case 'L':
-        case 'R':
-        case 'T':
-            bIsMoving  = true;
-            break;
-        case 'P':
-            bIsMoving  = true;
-            nConvErr = parseFields(resp, vFieldsData, 'P');
-            if(!nConvErr) {
-                m_dCurrentAzPosition = (359.0/m_nNbStepPerRev) * std::stof(vFieldsData[0]);
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::isDomeMoving] resp = %s\n", timestamp, resp);
+    fflush(Logfile);
+#endif
+
+    if(nErr) {
+        if(nErr == DDW_TIMEOUT) {
+            // is there a partial INF response in there.
+            if(strstr(resp, m_szFirmwareVersion))
+                bIsMoving = false;
+            else
+                bIsMoving = true; // we're probably still moving but haven't got  T or Pxxx since last time we checked
+        }
+        else
+            bIsMoving = false;   // there was an actuel error ?
+    }
+
+    else {  // no error, let's look at the response
+        if(strstr(resp, m_szFirmwareVersion)) { // is there a INF response in there.
+            bIsMoving = false;
+        }
+        else {
+            switch(resp[0]) {
+                case 'L':
+                case 'R':
+                case 'T':
+                    bIsMoving  = true;
+                    break;
+                case 'P':
+                    bIsMoving  = true;
+                    nConvErr = parseFields(resp, vFieldsData, 'P');
+                    if(!nConvErr) {
+                        m_dCurrentAzPosition = (359.0/m_nNbStepPerRev) * std::stof(vFieldsData[0]);
+                    }
+                    break;
+                default :
+                    bIsMoving  = false;
+                    break;
             }
-            break;
-
-        case 'V':   // GINF
-            parseGINF(resp);
-            bIsMoving  = false;
-            m_nNbStepPerRev = std::stoi(m_svGinf[gDticks]);
-            m_dCurrentAzPosition = (359.0/m_nNbStepPerRev) * std::stof(m_svGinf[gADAZ]);
-            break;
-
-        default :
-            bIsMoving  = false;
-            break;
+        }
     }
 
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
@@ -497,7 +519,8 @@ bool CddwDome::isDomeAtHome()
 {
     int nErr = DDW_OK;
     char resp[SERIAL_BUFFER_SIZE];
-    
+    char *szpGinf;
+
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
@@ -512,32 +535,41 @@ bool CddwDome::isDomeAtHome()
     fflush(Logfile);
 #endif
 
-    nErr = readAllResponse(resp, SERIAL_BUFFER_SIZE);
-    if(nErr)
-        return nErr;
-    switch(resp[0]) {
-        case 'L':
-        case 'R':
-        case 'T':
-        case 'P':
+    // read as much as we can.
+    nErr = readAllResponses(resp, SERIAL_BUFFER_SIZE);
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::isDomeAtHome] resp = %s\n", timestamp, resp);
+    fflush(Logfile);
+#endif
+    if(nErr) {
+        if(nErr == DDW_TIMEOUT) {
+            // is there a partial INF response in there.
+            if(strstr(resp, m_szFirmwareVersion))
+                m_bHomed = true;
+            else
+                m_bHomed = false; // we're probably still moving but haven't got  T or Pxxx since last time we checked
+        }
+        else
+            m_bHomed = false;   // there was an actuel error ? => check the logs
+    }
+    else {  // no error, let's look at the response
+        szpGinf = strstr(resp, m_szFirmwareVersion); // is there a INF response in there.
+        if(szpGinf) {
+            parseGINF(resp);
+            if(std::stoi(m_svGinf[gHome]) == AT_HOME) {
+                m_bHomed  = true;
+                m_bIsHoming = false;
+            }
+            else {
+                m_bHomed  = false;
+                m_bIsHoming = true;
+            }
+        }
+        else
             m_bHomed  = false;
-            break;
-
-        case 'V':   // GINF
-			parseGINF(resp);
-			if(std::stoi(m_svGinf[gHome]) == AT_HOME) {
-				m_bHomed  = true;
-				m_bIsHoming = false;
-			}
-			else {
-				m_bHomed  = false;
-				m_bIsHoming = true;
-			}
-            break;
-
-        default :
-            m_bHomed  = false;
-            break;
     }
 
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
