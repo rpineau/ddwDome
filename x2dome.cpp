@@ -124,15 +124,6 @@ int X2Dome::execModalSettingsDialog()
 
 
     memset(tmpBuf,0,SERIAL_BUFFER_SIZE);
-    if(mHasShutterControl)
-    {
-        dx->setChecked("hasShutterCtrl",true);
-    }
-    else
-    {
-        dx->setChecked("hasShutterCtrl",false);
-    }
-
     // set controls state depending on the connection state
     if(m_bLinked) {
         snprintf(tmpBuf,16,"%d",ddwDome.getNbTicksPerRev());
@@ -325,9 +316,6 @@ int X2Dome::dapiOpen(void)
     if(!m_bLinked)
         return ERR_NOLINK;
 
-    if(!mHasShutterControl)
-        return SB_OK;
-
     nErr = ddwDome.openShutter();
     if(nErr)
         return ERR_CMDFAILED;
@@ -342,9 +330,6 @@ int X2Dome::dapiClose(void)
 
     if(!m_bLinked)
         return ERR_NOLINK;
-
-    if(!mHasShutterControl)
-        return SB_OK;
 
     nErr = ddwDome.closeShutter();
     if(nErr)
@@ -361,13 +346,6 @@ int X2Dome::dapiPark(void)
     if(!m_bLinked)
         return ERR_NOLINK;
 
-    if(mHasShutterControl)
-    {
-        nErr = ddwDome.closeShutter();
-        if(nErr)
-            return ERR_CMDFAILED;
-    }
-
     nErr = ddwDome.parkDome();
     if(nErr)
         return ERR_CMDFAILED;
@@ -382,13 +360,6 @@ int X2Dome::dapiUnpark(void)
 
     if(!m_bLinked)
         return ERR_NOLINK;
-
-    if(mHasShutterControl)
-    {
-        nErr = ddwDome.openShutter();
-        if(nErr)
-            return ERR_CMDFAILED;
-    }
 
     nErr = ddwDome.unparkDome();
     if(nErr)
@@ -434,12 +405,6 @@ int X2Dome::dapiIsOpenComplete(bool* pbComplete)
     if(!m_bLinked)
         return ERR_NOLINK;
     
-    if(!mHasShutterControl)
-    {
-        *pbComplete = true;
-        return SB_OK;
-    }
-
     nErr = ddwDome.isOpenComplete(*pbComplete);
     if(nErr)
         return ERR_CMDFAILED;
@@ -454,12 +419,6 @@ int	X2Dome::dapiIsCloseComplete(bool* pbComplete)
 
     if(!m_bLinked)
         return ERR_NOLINK;
-
-    if(!mHasShutterControl)
-    {
-        *pbComplete = true;
-        return SB_OK;
-    }
 
     nErr = ddwDome.isCloseComplete(*pbComplete);
     if(nErr)

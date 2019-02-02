@@ -28,7 +28,6 @@ CddwDome::CddwDome()
     m_bShutterOpened = false;
     
     m_bParked = true;
-    m_bHomed = false;
 
     memset(m_szFirmwareVersion,0,SERIAL_BUFFER_SIZE);
 
@@ -54,7 +53,7 @@ CddwDome::CddwDome()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_02_1000.\n", timestamp);
+	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_02_1345.\n", timestamp);
     fprintf(Logfile, "[%s] [CddwDome::CddwDome] Constructor Called.\n", timestamp);
     fflush(Logfile);
 #endif
@@ -519,6 +518,7 @@ bool CddwDome::isDomeMoving()
                 case 'L':
                 case 'R':
                 case 'T':
+                case 'S':
                     bIsMoving  = true;
                     break;
                 case 'P':
@@ -550,13 +550,13 @@ bool CddwDome::isDomeAtHome()
 {
     int nErr = DDW_OK;
 	
-	m_bHomed = false;
+	bool  bHomed = false;
 	
 	if(!m_bIsConnected)
-        return NOT_CONNECTED;
+        return bHomed;
 
     if(!m_bIsHoming)
-        return m_bHomed;
+        return bHomed;
 
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
     ltime = time(NULL);
@@ -568,21 +568,21 @@ bool CddwDome::isDomeAtHome()
 
 	nErr = getInfRecord();
 	if(nErr)
-		return nErr;
+		return bHomed;
 	
 	if(std::stoi(m_svGinf[gHome]) == AT_HOME) {
-		m_bHomed  = true;
+		bHomed  = true;
 		m_bIsHoming = false;
 	}
  #if defined DDW_DEBUG && DDW_DEBUG >= 2
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CddwDome::isDomeAtHome] m_bHomed = %s\n", timestamp, m_bHomed?"True":"False");
+    fprintf(Logfile, "[%s] [CddwDome::isDomeAtHome] bHomed = %s\n", timestamp, bHomed?"True":"False");
     fflush(Logfile);
 #endif
 
-    return m_bHomed;
+    return bHomed;
 }
 
 int CddwDome::syncDome(double dAz, double dEl)
@@ -765,7 +765,8 @@ int CddwDome::openShutter()
 	nErr = domeCommand("GOPN", resp, SERIAL_BUFFER_SIZE);
     if(nErr)
         return nErr;
-
+    // opening triggers homing
+    m_bIsHoming = true;
     return nErr;
 }
 
@@ -804,6 +805,9 @@ int CddwDome::closeShutter()
 	nErr = domeCommand("GCLS", resp, SERIAL_BUFFER_SIZE);
     if(nErr)
         return nErr;
+
+    // closing triggers homing
+    m_bIsHoming = true;
 
     return nErr;
 }
@@ -1031,6 +1035,11 @@ int CddwDome::isOpenComplete(bool &bComplete)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+    if(isDomeMoving()) {
+        bComplete = false;
+        return nErr;
+    }
+
     nErr = getShutterState(state);
     if(nErr)
         return nErr;
@@ -1064,6 +1073,11 @@ int CddwDome::isCloseComplete(bool &bComplete)
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
+
+    if(isDomeMoving()) {
+        bComplete = false;
+        return nErr;
+    }
 
     nErr = getShutterState(state);
     if(nErr)
@@ -1157,14 +1171,13 @@ int CddwDome::isFindHomeComplete(bool &bComplete)
 #endif
 
     if(isDomeMoving()) {
-        m_bHomed = false;
         bComplete = false;
         return nErr;
     }
 
     if(isDomeAtHome()){
-        m_bHomed = true;
         bComplete = true;
+        m_bIsHoming = false;
     }
     else {
         // we're not moving and we're not at the home position !!!
@@ -1176,8 +1189,7 @@ int CddwDome::isFindHomeComplete(bool &bComplete)
         fflush(Logfile);
 #endif
         bComplete = false;
-        m_bHomed = false;
-        m_bParked = false;
+        m_bIsHoming = false;
         nErr = ERR_CMDFAILED;
     }
 
@@ -1206,7 +1218,6 @@ int CddwDome::isCalibratingComplete(bool &bComplete)
 
     if(isDomeMoving()) {
         nErr = getDomeAz(dDomeAz);
-        m_bHomed = false;
         bComplete = false;
         return nErr;
     }
@@ -1226,12 +1237,10 @@ int CddwDome::isCalibratingComplete(bool &bComplete)
         // We need to resync the current position to the home position.
         m_dCurrentAzPosition = m_dHomeAz;
         syncDome(m_dCurrentAzPosition, m_dCurrentElPosition);
-        m_bHomed = true;
         bComplete = true;
     }
 
     nErr = getDomeStepPerRev(m_nNbStepPerRev);
-    m_bHomed = true;
     bComplete = true;
     m_bCalibrating = false;
 

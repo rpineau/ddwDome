@@ -130,7 +130,7 @@ public:
     virtual bool			isBaudRateFixed() const		{return true;}
 
     virtual SerXInterface::Parity	parity() const				{return SerXInterface::B_NOPARITY;}
-    virtual void					setParity(const SerXInterface::Parity& parity){parity;};
+    virtual void					setParity(const SerXInterface::Parity& parity){};
     virtual bool					isParityFixed() const		{return true;}
 
 
@@ -161,7 +161,6 @@ private:
 	int         m_nPrivateISIndex;
 	bool         m_bLinked;
     CddwDome  ddwDome;
-    bool        mHasShutterControl;
     bool        mOpenUpperShutterOnly;
     bool        mCalibratingDome;
     char        mLogBuffer[LOG_BUFFER_SIZE];

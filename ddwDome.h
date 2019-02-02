@@ -149,7 +149,6 @@ protected:
     
     LoggerInterface *mLogger;    
     bool            m_bIsConnected;
-    bool            m_bHomed;
     bool            m_bParked;
     bool            m_bCalibrating;
     bool            m_bIsHoming;
