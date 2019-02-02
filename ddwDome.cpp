@@ -34,7 +34,7 @@ CddwDome::CddwDome()
 
     timer.Reset();
     m_dInfRefreshInterval = 2;
-
+	
 #ifdef DDW_DEBUG
 #if defined(SB_WIN_BUILD)
     m_sLogfilePath = getenv("HOMEDRIVE");
@@ -54,8 +54,8 @@ CddwDome::CddwDome()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] CddwDome Version 2019_02_01_1800.\n", timestamp);
-    fprintf(Logfile, "[%s] CddwDome Constructor Called.\n", timestamp);
+	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_01_2030.\n", timestamp);
+    fprintf(Logfile, "[%s] [CddwDome::CddwDome] Constructor Called.\n", timestamp);
     fflush(Logfile);
 #endif
 
@@ -71,7 +71,7 @@ int CddwDome::Connect(const char *szPort)
     int nErr;
     int nState;
 
-    if(pSerx->open(szPort, 9600, SerXInterface::B_NOPARITY, "-DTR_CONTROL 1") == 0)
+    if(pSerx->open(szPort, 9600, SerXInterface::B_NOPARITY, "-DTR_CONTROL 1 -RTS_CONTROL 1") == 0)
         m_bIsConnected = true;
     else
         m_bIsConnected = false;
@@ -380,7 +380,6 @@ int CddwDome::getShutterState(int &state)
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
-
 
 	if(m_bCalibrating || m_bIsHoming || m_bIsGoToing) {
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
@@ -726,6 +725,23 @@ int CddwDome::gotoAzimuth(double dNewAz)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+	if(m_bCalibrating || m_bIsHoming || m_bIsGoToing) {
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+		ltime = time(NULL);
+		timestamp = asctime(localtime(&ltime));
+		timestamp[strlen(timestamp) - 1] = 0;
+		fprintf(Logfile, "[%s] [CddwDome::gotoAzimuth] Movement in progress\n", timestamp);
+		fprintf(Logfile, "[%s] [CddwDome::gotoAzimuth] m_bCalibrating = %s, m_bIsHoming = %s, m_bIsGoToing = %s\n", timestamp,
+				m_bCalibrating?"True":"False",
+				m_bIsHoming?"True":"False",
+				m_bIsGoToing?"True":"False"
+				);
+		fflush(Logfile);
+#endif
+		return ERR_COMMANDINPROGRESS;
+	}
+
+	
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
@@ -793,8 +809,8 @@ int CddwDome::openShutter()
 	fprintf(Logfile, "[%s] [CddwDome::openShutter]\n", timestamp);
 	fflush(Logfile);
 #endif
-	
-    nErr = domeCommand("GOPN", resp, SERIAL_BUFFER_SIZE);
+
+	nErr = domeCommand("GOPN", resp, SERIAL_BUFFER_SIZE);
     if(nErr)
         return nErr;
 
@@ -1063,20 +1079,10 @@ int CddwDome::isOpenComplete(bool &bComplete)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    if(m_bCalibrating || m_bIsHoming || m_bIsGoToing)
-        return nErr;
-
-#if defined DDW_DEBUG && DDW_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CddwDome::isOpenComplete]\n", timestamp);
-    fflush(Logfile);
-#endif
-
     nErr = getShutterState(state);
     if(nErr)
-        return ERR_CMDFAILED;
+        return nErr;
+	
     if(state == OPEN){
         m_bShutterOpened = true;
         bComplete = true;
@@ -1106,17 +1112,6 @@ int CddwDome::isCloseComplete(bool &bComplete)
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
-
-    if(m_bCalibrating || m_bIsHoming || m_bIsGoToing)
-        return nErr;
-
-#if defined DDW_DEBUG && DDW_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CddwDome::isCloseComplete]\n", timestamp);
-    fflush(Logfile);
-#endif
 
     nErr = getShutterState(state);
     if(nErr)
@@ -1242,7 +1237,7 @@ int CddwDome::isFindHomeComplete(bool &bComplete)
     fflush(Logfile);
 #endif
 
-    return nErr;
+   return nErr;
 }
 
 
