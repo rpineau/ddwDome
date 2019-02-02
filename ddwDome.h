@@ -150,9 +150,7 @@ protected:
     LoggerInterface *mLogger;    
     bool            m_bIsConnected;
     bool            m_bParked;
-    bool            m_bCalibrating;
-    bool            m_bIsHoming;
-    bool            m_bIsGoToing;
+    bool            m_bIsMoving;
     int             m_nNbStepPerRev;
     double          m_dShutterBatteryVolts;
     double          m_dShutterBatteryPercent;

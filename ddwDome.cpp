@@ -21,9 +21,7 @@ CddwDome::CddwDome()
 
     m_dCurrentAzPosition = 0.0;
     m_dCurrentElPosition = 0.0;
-
-    m_bCalibrating = false;
-
+    m_bIsMoving = false;
     m_bHasShutter = false;
     m_bShutterOpened = false;
     
@@ -53,7 +51,7 @@ CddwDome::CddwDome()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_02_1345.\n", timestamp);
+	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_02_1445.\n", timestamp);
     fprintf(Logfile, "[%s] [CddwDome::CddwDome] Constructor Called.\n", timestamp);
     fflush(Logfile);
 #endif
@@ -272,17 +270,13 @@ int CddwDome::getDomeAz(double &domeAz)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-	if(m_bCalibrating || m_bIsHoming || m_bIsGoToing) {
+	if(m_bIsMoving) {
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
 		ltime = time(NULL);
 		timestamp = asctime(localtime(&ltime));
 		timestamp[strlen(timestamp) - 1] = 0;
 		fprintf(Logfile, "[%s] [CddwDome::getDomeAz] Movement in progress\n", timestamp);
-		fprintf(Logfile, "[%s] [CddwDome::getDomeAz] m_bCalibrating = %s, m_bIsHoming = %s, m_bIsGoToing = %s\n", timestamp,
-				m_bCalibrating?"True":"False",
-				m_bIsHoming?"True":"False",
-				m_bIsGoToing?"True":"False"
-				);
+		fprintf(Logfile, "[%s] [CddwDome::getDomeAz] m_bIsMoving = %s\n", timestamp, m_bIsMoving?"True":"False");
 		fflush(Logfile);
 #endif
         domeAz = m_dCurrentAzPosition;  // should be updated when checking if dome is moving
@@ -348,7 +342,7 @@ int CddwDome::getDomeHomeAz(double &Az)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    if(m_bCalibrating || m_bIsHoming || m_bIsGoToing)
+    if(m_bIsMoving)
         return nErr;
 
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
@@ -380,17 +374,13 @@ int CddwDome::getShutterState(int &state)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-	if(m_bCalibrating || m_bIsHoming || m_bIsGoToing) {
+	if(m_bIsMoving) {
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
 		ltime = time(NULL);
 		timestamp = asctime(localtime(&ltime));
 		timestamp[strlen(timestamp) - 1] = 0;
 		fprintf(Logfile, "[%s] [CddwDome::getShutterState] Movement in progress\n", timestamp);
-		fprintf(Logfile, "[%s] [CddwDome::getShutterState] m_bCalibrating = %s, m_bIsHoming = %s, m_bIsGoToing = %s\n", timestamp,
-				m_bCalibrating?"True":"False",
-				m_bIsHoming?"True":"False",
-				m_bIsGoToing?"True":"False"
-				);
+		fprintf(Logfile, "[%s] [CddwDome::getShutterState] m_bIsMoving = %s\n", timestamp, m_bIsMoving?"True":"False");
 		fflush(Logfile);
 #endif
 		return ERR_COMMANDINPROGRESS;
@@ -452,7 +442,7 @@ int CddwDome::getDomeStepPerRev(int &stepPerRev)
     fflush(Logfile);
 #endif
 
-    if(!m_bCalibrating && !m_bIsHoming && !m_bIsGoToing)  {
+    if(!m_bIsMoving)  {
         nErr = getInfRecord();
         if(nErr)
             return nErr;
@@ -467,7 +457,6 @@ int CddwDome::getDomeStepPerRev(int &stepPerRev)
 
 bool CddwDome::isDomeMoving()
 {
-    bool bIsMoving;
     int nErr = DDW_OK;
     int nConvErr = DDW_OK;
     char resp[SERIAL_BUFFER_SIZE];
@@ -476,7 +465,7 @@ bool CddwDome::isDomeMoving()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    bIsMoving = true;
+    m_bIsMoving = true;
 
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
     ltime = time(NULL);
@@ -501,17 +490,17 @@ bool CddwDome::isDomeMoving()
         if(nErr == DDW_TIMEOUT) {
             // is there a partial INF response in there.
             if(strstr(resp, m_szFirmwareVersion))
-                bIsMoving = false;
+                m_bIsMoving = false;
             else
-                bIsMoving = true; // we're probably still moving but haven't got  T or Pxxx since last time we checked
+                m_bIsMoving = true; // we're probably still moving but haven't got  T or Pxxx since last time we checked
         }
         else
-            bIsMoving = false;   // there was an actuel error ?
+            m_bIsMoving = false;   // there was an actuel error ?
     }
 
     else if(strlen(resp)) {  // no error, let's look at the response
         if(strstr(resp, m_szFirmwareVersion)) { // is there a INF response in there.
-            bIsMoving = false;
+            m_bIsMoving = false;
         }
         else {
             switch(resp[0]) {
@@ -519,17 +508,17 @@ bool CddwDome::isDomeMoving()
                 case 'R':
                 case 'T':
                 case 'S':
-                    bIsMoving  = true;
+                    m_bIsMoving  = true;
                     break;
                 case 'P':
-                    bIsMoving  = true;
+                    m_bIsMoving  = true;
                     nConvErr = parseFields(resp, vFieldsData, 'P');
                     if(!nConvErr && m_nNbStepPerRev && vFieldsData.size()) {
                         m_dCurrentAzPosition = (359.0/m_nNbStepPerRev) * std::stof(vFieldsData[0]);
                     }
                     break;
                 default :
-                    bIsMoving  = false;
+                    m_bIsMoving  = false;
                     break;
             }
         }
@@ -539,11 +528,11 @@ bool CddwDome::isDomeMoving()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CddwDome::isDomeMoving] isMoving = %s\n", timestamp, bIsMoving?"True":"False");
+    fprintf(Logfile, "[%s] [CddwDome::isDomeMoving] isMoving = %s\n", timestamp, m_bIsMoving?"True":"False");
     fflush(Logfile);
 #endif
 
-    return bIsMoving;
+    return m_bIsMoving;
 }
 
 bool CddwDome::isDomeAtHome()
@@ -553,9 +542,6 @@ bool CddwDome::isDomeAtHome()
 	bool  bHomed = false;
 	
 	if(!m_bIsConnected)
-        return bHomed;
-
-    if(!m_bIsHoming)
         return bHomed;
 
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
@@ -572,7 +558,7 @@ bool CddwDome::isDomeAtHome()
 	
 	if(std::stoi(m_svGinf[gHome]) == AT_HOME) {
 		bHomed  = true;
-		m_bIsHoming = false;
+		m_bIsMoving = false;
 	}
  #if defined DDW_DEBUG && DDW_DEBUG >= 2
     ltime = time(NULL);
@@ -597,17 +583,13 @@ int CddwDome::parkDome()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-	if(m_bCalibrating || m_bIsHoming || m_bIsGoToing) {
+	if(m_bIsMoving) {
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
 		ltime = time(NULL);
 		timestamp = asctime(localtime(&ltime));
 		timestamp[strlen(timestamp) - 1] = 0;
 		fprintf(Logfile, "[%s] [CddwDome::parkDome] Movement in progress\n", timestamp);
-		fprintf(Logfile, "[%s] [CddwDome::parkDome] m_bCalibrating = %s, m_bIsHoming = %s, m_bIsGoToing = %s\n", timestamp,
-				m_bCalibrating?"True":"False",
-				m_bIsHoming?"True":"False",
-				m_bIsGoToing?"True":"False"
-				);
+		fprintf(Logfile, "[%s] [CddwDome::parkDome] m_bIsMoving = %s\n", timestamp, m_bIsMoving?"True":"False");
 		fflush(Logfile);
 #endif
 		return ERR_COMMANDINPROGRESS;
@@ -625,7 +607,7 @@ int CddwDome::parkDome()
     if(nErr != DDW_TIMEOUT)
         return nErr;
 
-    m_bIsHoming = true;
+    m_bIsMoving = true;
 
     return nErr;
 }
@@ -634,17 +616,13 @@ int CddwDome::unparkDome()
 {
     int nErr = DDW_OK;
 
-	if(m_bCalibrating || m_bIsHoming || m_bIsGoToing) {
+	if(m_bIsMoving) {
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
 		ltime = time(NULL);
 		timestamp = asctime(localtime(&ltime));
 		timestamp[strlen(timestamp) - 1] = 0;
 		fprintf(Logfile, "[%s] [CddwDome::unparkDome] Movement in progress\n", timestamp);
-		fprintf(Logfile, "[%s] [CddwDome::unparkDome] m_bCalibrating = %s, m_bIsHoming = %s, m_bIsGoToing = %s\n", timestamp,
-				m_bCalibrating?"True":"False",
-				m_bIsHoming?"True":"False",
-				m_bIsGoToing?"True":"False"
-				);
+		fprintf(Logfile, "[%s] [CddwDome::unparkDome] m_bIsMoving = %s\n", timestamp, m_bIsMoving?"True":"False");
 		fflush(Logfile);
 #endif
 		return ERR_COMMANDINPROGRESS;
@@ -663,7 +641,7 @@ int CddwDome::unparkDome()
 	if(nErr != DDW_TIMEOUT)
         return nErr;
 
-    m_bIsHoming = true;
+    m_bIsMoving = true;
     return nErr;
 }
 
@@ -677,17 +655,13 @@ int CddwDome::gotoAzimuth(double dNewAz)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-	if(m_bCalibrating || m_bIsHoming || m_bIsGoToing) {
+	if(m_bIsMoving) {
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
 		ltime = time(NULL);
 		timestamp = asctime(localtime(&ltime));
 		timestamp[strlen(timestamp) - 1] = 0;
 		fprintf(Logfile, "[%s] [CddwDome::gotoAzimuth] Movement in progress\n", timestamp);
-		fprintf(Logfile, "[%s] [CddwDome::gotoAzimuth] m_bCalibrating = %s, m_bIsHoming = %s, m_bIsGoToing = %s\n", timestamp,
-				m_bCalibrating?"True":"False",
-				m_bIsHoming?"True":"False",
-				m_bIsGoToing?"True":"False"
-				);
+		fprintf(Logfile, "[%s] [CddwDome::gotoAzimuth] m_bIsMoving = %s\n", timestamp, m_bIsMoving?"True":"False");
 		fflush(Logfile);
 #endif
 		return ERR_COMMANDINPROGRESS;
@@ -702,7 +676,7 @@ int CddwDome::gotoAzimuth(double dNewAz)
     fflush(Logfile);
 #endif
 
-	m_bIsGoToing = true;
+	m_bIsMoving = true;
 	m_dGotoAz = dNewAz;
     snprintf(buf, SERIAL_BUFFER_SIZE, "G%03d", int(dNewAz));
     nErr = domeCommand(buf, resp, SERIAL_BUFFER_SIZE);
@@ -738,17 +712,13 @@ int CddwDome::openShutter()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-	if(m_bCalibrating || m_bIsHoming || m_bIsGoToing) {
+	if(m_bIsMoving) {
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
 		ltime = time(NULL);
 		timestamp = asctime(localtime(&ltime));
 		timestamp[strlen(timestamp) - 1] = 0;
 		fprintf(Logfile, "[%s] [CddwDome::openShutter] Movement in progress\n", timestamp);
-		fprintf(Logfile, "[%s] [CddwDome::openShutter] m_bCalibrating = %s, m_bIsHoming = %s, m_bIsGoToing = %s\n", timestamp,
-				m_bCalibrating?"True":"False",
-				m_bIsHoming?"True":"False",
-				m_bIsGoToing?"True":"False"
-				);
+		fprintf(Logfile, "[%s] [CddwDome::openShutter] m_bIsMoving = %s\n", timestamp, m_bIsMoving?"True":"False");
 		fflush(Logfile);
 #endif
 		return ERR_COMMANDINPROGRESS;
@@ -766,7 +736,7 @@ int CddwDome::openShutter()
     if(nErr)
         return nErr;
     // opening triggers homing
-    m_bIsHoming = true;
+    m_bIsMoving = true;
     return nErr;
 }
 
@@ -778,17 +748,13 @@ int CddwDome::closeShutter()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-	if(m_bCalibrating || m_bIsHoming || m_bIsGoToing) {
+	if(m_bIsMoving) {
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
 		ltime = time(NULL);
 		timestamp = asctime(localtime(&ltime));
 		timestamp[strlen(timestamp) - 1] = 0;
 		fprintf(Logfile, "[%s] [CddwDome::closeShutter] Movement in progress\n", timestamp);
-		fprintf(Logfile, "[%s] [CddwDome::closeShutter] m_bCalibrating = %s, m_bIsHoming = %s, m_bIsGoToing = %s\n", timestamp,
-				m_bCalibrating?"True":"False",
-				m_bIsHoming?"True":"False",
-				m_bIsGoToing?"True":"False"
-				);
+		fprintf(Logfile, "[%s] [CddwDome::closeShutter] m_bIsMoving = %s\n", timestamp, m_bIsMoving?"True":"False");
 		fflush(Logfile);
 #endif
 		return ERR_COMMANDINPROGRESS;
@@ -807,7 +773,7 @@ int CddwDome::closeShutter()
         return nErr;
 
     // closing triggers homing
-    m_bIsHoming = true;
+    m_bIsMoving = true;
 
     return nErr;
 }
@@ -832,7 +798,7 @@ int CddwDome::getFirmwareVersion(char *version, int strMaxLen)
         return nErr;
     }
 
-    if(m_bCalibrating || m_bIsHoming || m_bIsGoToing) {
+    if(m_bIsMoving) {
         strncpy(version, "NA", strMaxLen);
         return nErr;
     }
@@ -872,23 +838,19 @@ int CddwDome::goHome()
 	fflush(Logfile);
 #endif
 
-	if(m_bCalibrating || m_bIsHoming || m_bIsGoToing) {
+	if(m_bIsMoving) {
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
 		ltime = time(NULL);
 		timestamp = asctime(localtime(&ltime));
 		timestamp[strlen(timestamp) - 1] = 0;
 		fprintf(Logfile, "[%s] [CddwDome::goHome] Movement in progress\n", timestamp);
-		fprintf(Logfile, "[%s] [CddwDome::goHome] m_bCalibrating = %s, m_bIsHoming = %s, m_bIsGoToing = %s\n", timestamp,
-				m_bCalibrating?"True":"False",
-				m_bIsHoming?"True":"False",
-				m_bIsGoToing?"True":"False"
-				);
+		fprintf(Logfile, "[%s] [CddwDome::goHome] m_bIsMoving = %s\n", timestamp, m_bIsMoving?"True":"False");
 		fflush(Logfile);
 #endif
         return ERR_COMMANDINPROGRESS;
 	}
 
-	m_bIsHoming = true;
+	m_bIsMoving = true;
 
     nErr = domeCommand("GHOM", resp, SERIAL_BUFFER_SIZE);
     if(nErr)
@@ -920,17 +882,13 @@ int CddwDome::calibrate()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-	if(m_bCalibrating || m_bIsHoming || m_bIsGoToing) {
+	if(m_bIsMoving) {
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
 		ltime = time(NULL);
 		timestamp = asctime(localtime(&ltime));
 		timestamp[strlen(timestamp) - 1] = 0;
 		fprintf(Logfile, "[%s] [CddwDome::calibrate] Movement in progress\n", timestamp);
-		fprintf(Logfile, "[%s] [CddwDome::calibrate] m_bCalibrating = %s, m_bIsHoming = %s, m_bIsGoToing = %s\n", timestamp,
-				m_bCalibrating?"True":"False",
-				m_bIsHoming?"True":"False",
-				m_bIsGoToing?"True":"False"
-				);
+		fprintf(Logfile, "[%s] [CddwDome::calibrate] m_bIsMoving = %s\n", timestamp, m_bIsMoving?"True":"False");
 		fflush(Logfile);
 #endif
 		return ERR_COMMANDINPROGRESS;
@@ -944,7 +902,7 @@ int CddwDome::calibrate()
     fflush(Logfile);
 #endif
 
-	m_bCalibrating = true;
+	m_bIsMoving = true;
 	
     nErr = domeCommand("GTRN", resp, SERIAL_BUFFER_SIZE);
     if(nErr)
@@ -954,11 +912,9 @@ int CddwDome::calibrate()
         case 'R':
         case 'T':
             nErr = DDW_OK;
-            m_bCalibrating = true;
             break;
         case 'P':
             nErr = DDW_OK;
-            m_bCalibrating = true;
             break;
         default :
             nErr = DDW_BAD_CMD_RESPONSE;
@@ -986,7 +942,7 @@ int CddwDome::isGoToComplete(bool &bComplete)
 
 	bComplete = false;
 
-    if(!m_bIsGoToing)
+    if(!m_bIsMoving)
         return SB_OK;
 
     if(isDomeMoving()) {
@@ -1001,7 +957,7 @@ int CddwDome::isGoToComplete(bool &bComplete)
 
 	if ((ceil(m_dGotoAz) <= ceil(dDomeAz)+3) && (ceil(m_dGotoAz) >= ceil(dDomeAz)-3)) {
         bComplete = true;
-        m_bIsGoToing = false;
+        m_bIsMoving = false;
     }
     else {
         // we're not moving and we're not at the final destination !!!
@@ -1177,7 +1133,6 @@ int CddwDome::isFindHomeComplete(bool &bComplete)
 
     if(isDomeAtHome()){
         bComplete = true;
-        m_bIsHoming = false;
     }
     else {
         // we're not moving and we're not at the home position !!!
@@ -1189,7 +1144,6 @@ int CddwDome::isFindHomeComplete(bool &bComplete)
         fflush(Logfile);
 #endif
         bComplete = false;
-        m_bIsHoming = false;
         nErr = ERR_CMDFAILED;
     }
 
@@ -1212,9 +1166,6 @@ int CddwDome::isCalibratingComplete(bool &bComplete)
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
-
-    if(!m_bCalibrating)
-        return nErr;
 
     if(isDomeMoving()) {
         nErr = getDomeAz(dDomeAz);
@@ -1242,7 +1193,7 @@ int CddwDome::isCalibratingComplete(bool &bComplete)
 
     nErr = getDomeStepPerRev(m_nNbStepPerRev);
     bComplete = true;
-    m_bCalibrating = false;
+    m_bIsMoving = false;
 
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
     ltime = time(NULL);
@@ -1263,9 +1214,7 @@ int CddwDome::abortCurrentCommand()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    m_bCalibrating = false;
-    m_bIsHoming = false;
-    m_bIsGoToing = false;
+    m_bIsMoving = false;
 
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
     ltime = time(NULL);
@@ -1291,17 +1240,13 @@ int CddwDome::getInfRecord()
     if(timer.GetElapsedSeconds() < m_dInfRefreshInterval)
         return nErr;
 
-	if(m_bCalibrating || m_bIsHoming || m_bIsGoToing) {
+	if(m_bIsMoving) {
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
 		ltime = time(NULL);
 		timestamp = asctime(localtime(&ltime));
 		timestamp[strlen(timestamp) - 1] = 0;
 		fprintf(Logfile, "[%s] [CddwDome::getInfRecord] Movement in progress\n", timestamp);
-		fprintf(Logfile, "[%s] [CddwDome::getInfRecord] m_bCalibrating = %s, m_bIsHoming = %s, m_bIsGoToing = %s\n", timestamp,
-				m_bCalibrating?"True":"False",
-				m_bIsHoming?"True":"False",
-				m_bIsGoToing?"True":"False"
-				);
+		fprintf(Logfile, "[%s] [CddwDome::getInfRecord] m_bIsMoving = %s\n", timestamp, m_bIsMoving?"True":"False");
 		fflush(Logfile);
 #endif
 		return ERR_COMMANDINPROGRESS;
