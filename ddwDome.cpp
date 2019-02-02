@@ -54,7 +54,7 @@ CddwDome::CddwDome()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_01_2030.\n", timestamp);
+	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_02_1000.\n", timestamp);
     fprintf(Logfile, "[%s] [CddwDome::CddwDome] Constructor Called.\n", timestamp);
     fflush(Logfile);
 #endif
@@ -523,25 +523,7 @@ bool CddwDome::isDomeMoving()
                     break;
                 case 'P':
                     bIsMoving  = true;
-#if defined DDW_DEBUG && DDW_DEBUG >= 2
-					ltime = time(NULL);
-					timestamp = asctime(localtime(&ltime));
-					timestamp[strlen(timestamp) - 1] = 0;
-					fprintf(Logfile, "[%s] [CddwDome::isDomeMoving] parsing response = %s\n", timestamp, resp);
-					fflush(Logfile);
-#endif
                     nConvErr = parseFields(resp, vFieldsData, 'P');
-#if defined DDW_DEBUG && DDW_DEBUG >= 2
-					ltime = time(NULL);
-					timestamp = asctime(localtime(&ltime));
-					timestamp[strlen(timestamp) - 1] = 0;
-					if(vFieldsData.size())
-						fprintf(Logfile, "[%s] [CddwDome::isDomeMoving] vFieldsData[0] = %s\n", timestamp, vFieldsData[0].c_str());
-					else
-						fprintf(Logfile, "[%s] [CddwDome::isDomeMoving] vFieldsData.size is 0 !!!\n", timestamp);
-					fprintf(Logfile, "[%s] [CddwDome::isDomeMoving] m_nNbStepPerRev = %d\n", timestamp, m_nNbStepPerRev);
-					fflush(Logfile);
-#endif
                     if(!nConvErr && m_nNbStepPerRev && vFieldsData.size()) {
                         m_dCurrentAzPosition = (359.0/m_nNbStepPerRev) * std::stof(vFieldsData[0]);
                     }
@@ -567,14 +549,14 @@ bool CddwDome::isDomeMoving()
 bool CddwDome::isDomeAtHome()
 {
     int nErr = DDW_OK;
-    char resp[SERIAL_BUFFER_SIZE];
-    char *szpGinf;
-
-    if(!m_bIsConnected)
+	
+	m_bHomed = false;
+	
+	if(!m_bIsConnected)
         return NOT_CONNECTED;
 
     if(!m_bIsHoming)
-        return false;
+        return m_bHomed;
 
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
     ltime = time(NULL);
@@ -584,44 +566,15 @@ bool CddwDome::isDomeAtHome()
     fflush(Logfile);
 #endif
 
-    // read as much as we can.
-    nErr = readAllResponses(resp, SERIAL_BUFFER_SIZE);
-#if defined DDW_DEBUG && DDW_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CddwDome::isDomeAtHome] resp = %s\n", timestamp, resp);
-    fflush(Logfile);
-#endif
-    if(nErr) {
-        if(nErr == DDW_TIMEOUT) {
-            // is there a partial INF response in there.
-            if(strstr(resp, m_szFirmwareVersion))
-                m_bHomed = true;
-            else
-                m_bHomed = false; // we're probably still moving but haven't got  T or Pxxx since last time we checked
-        }
-        else
-            m_bHomed = false;   // there was an actuel error ? => check the logs
-    }
-    else {  // no error, let's look at the response
-        szpGinf = strstr(resp, m_szFirmwareVersion); // is there a INF response in there.
-        if(szpGinf) {
-            parseGINF(resp);
-            if(std::stoi(m_svGinf[gHome]) == AT_HOME) {
-                m_bHomed  = true;
-                m_bIsHoming = false;
-            }
-            else {
-                m_bHomed  = false;
-                m_bIsHoming = true;
-            }
-        }
-        else
-            m_bHomed  = false;
-    }
-
-#if defined DDW_DEBUG && DDW_DEBUG >= 2
+	nErr = getInfRecord();
+	if(nErr)
+		return nErr;
+	
+	if(std::stoi(m_svGinf[gHome]) == AT_HOME) {
+		m_bHomed  = true;
+		m_bIsHoming = false;
+	}
+ #if defined DDW_DEBUG && DDW_DEBUG >= 2
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
@@ -630,7 +583,6 @@ bool CddwDome::isDomeAtHome()
 #endif
 
     return m_bHomed;
-  
 }
 
 int CddwDome::syncDome(double dAz, double dEl)
