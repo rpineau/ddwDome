@@ -39,7 +39,7 @@
 #define DDW_DEBUG 2
 
 #define SERIAL_BUFFER_SIZE 4096
-#define MAX_TIMEOUT 500
+#define MAX_TIMEOUT 1500
 #define ND_LOG_BUFFER_SIZE 256
 
 // field indexes in GINF
