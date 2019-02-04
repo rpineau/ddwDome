@@ -51,7 +51,7 @@ CddwDome::CddwDome()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_02_1445.\n", timestamp);
+	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_03_1130.\n", timestamp);
     fprintf(Logfile, "[%s] [CddwDome::CddwDome] Constructor Called.\n", timestamp);
     fflush(Logfile);
 #endif
@@ -296,7 +296,7 @@ int CddwDome::getDomeAz(double &domeAz)
         return nErr;
 
     m_nNbStepPerRev = std::stoi(m_svGinf[gDticks]);
-    m_dCurrentAzPosition = (359.0/m_nNbStepPerRev) * std::stof(m_svGinf[gADAZ]);
+    m_dCurrentAzPosition = (360.0/m_nNbStepPerRev) * std::stof(m_svGinf[gADAZ]);
 
     domeAz = m_dCurrentAzPosition;
 
@@ -359,7 +359,7 @@ int CddwDome::getDomeHomeAz(double &Az)
 
     m_nNbStepPerRev = std::stoi(m_svGinf[gDticks]);
 
-    Az = (359.0/m_nNbStepPerRev) * std::stof(m_svGinf[gHomeAz]);
+    Az = (360.0/m_nNbStepPerRev) * std::stof(m_svGinf[gHomeAz]);
     m_dHomeAz = Az;
 
     return nErr;
@@ -465,8 +465,6 @@ bool CddwDome::isDomeMoving()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    m_bIsMoving = true;
-
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
@@ -514,7 +512,7 @@ bool CddwDome::isDomeMoving()
                     m_bIsMoving  = true;
                     nConvErr = parseFields(resp, vFieldsData, 'P');
                     if(!nConvErr && m_nNbStepPerRev && vFieldsData.size()) {
-                        m_dCurrentAzPosition = (359.0/m_nNbStepPerRev) * std::stof(vFieldsData[0]);
+                        m_dCurrentAzPosition = (360.0/m_nNbStepPerRev) * std::stof(vFieldsData[0]);
                     }
                     break;
                 default :
@@ -708,7 +706,8 @@ int CddwDome::openShutter()
 {
     int nErr = DDW_OK;
     char resp[SERIAL_BUFFER_SIZE];
-
+	int shutterState;
+	
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
@@ -735,8 +734,35 @@ int CddwDome::openShutter()
 	nErr = domeCommand("GOPN", resp, SERIAL_BUFFER_SIZE);
     if(nErr)
         return nErr;
-    // opening triggers homing
-    m_bIsMoving = true;
+
+	// opening triggers homing
+	if(strlen(resp) && resp[0] == 'V') {
+		parseGINF(resp);
+		shutterState = std::stoi(m_svGinf[gShutter]);
+		switch(shutterState) {
+			case OPEN:
+				m_bShutterOpened = true;
+				m_bIsMoving = false;
+				break;
+				
+			case CLOSED:
+				m_bShutterOpened = false;
+				m_bIsMoving = false;
+				break;
+
+			case UNKNOWN:
+				m_bShutterOpened = false;
+				m_bIsMoving = true;
+				break;
+
+			default:
+				m_bShutterOpened = false;
+				m_bIsMoving = false;
+				break;
+		}
+	}
+	else
+    	m_bIsMoving = true;
     return nErr;
 }
 
@@ -744,7 +770,8 @@ int CddwDome::closeShutter()
 {
     int nErr = DDW_OK;
     char resp[SERIAL_BUFFER_SIZE];
-
+	int shutterState;
+	
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
@@ -773,7 +800,32 @@ int CddwDome::closeShutter()
         return nErr;
 
     // closing triggers homing
-    m_bIsMoving = true;
+	if(strlen(resp) && resp[0] == 'V') {
+		parseGINF(resp);
+		shutterState = std::stoi(m_svGinf[gShutter]);
+		switch(shutterState) {
+			case OPEN:
+				m_bShutterOpened = true;
+				m_bIsMoving = false;
+				break;
+				
+			case CLOSED:
+				m_bShutterOpened = false;
+				m_bIsMoving = false;
+				break;
+				
+			case UNKNOWN:
+				m_bShutterOpened = false;
+				m_bIsMoving = true;
+				break;
+				
+			default:
+				m_bShutterOpened = false;
+				break;
+		}
+	}
+	else
+		m_bIsMoving = true;
 
     return nErr;
 }
