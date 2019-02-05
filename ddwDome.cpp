@@ -51,7 +51,7 @@ CddwDome::CddwDome()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_04_1425.\n", timestamp);
+	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_04_1825.\n", timestamp);
     fprintf(Logfile, "[%s] [CddwDome::CddwDome] Constructor Called.\n", timestamp);
     fflush(Logfile);
 #endif
@@ -486,32 +486,29 @@ bool CddwDome::isDomeMoving()
         else
             m_bIsMoving = false;   // there was an actuel error ?
     }
-
     else if(strlen(resp)) {  // no error, let's look at the response
-        if(strstr(resp, m_szFirmwareVersion)) { // is there a INF response in there.
-            parseGINF(resp);
-            m_bIsMoving = false;
-        }
-        else {
-            switch(resp[0]) {
-                case 'L':
-                case 'R':
-                case 'T':
-                case 'S':
-                    m_bIsMoving  = true;
-                    break;
-                case 'P':
-                    m_bIsMoving  = true;
-                    nConvErr = parseFields(resp, vFieldsData, 'P');
-                    if(!nConvErr && m_nNbStepPerRev && vFieldsData.size()) {
-                        m_dCurrentAzPosition = (360.0/m_nNbStepPerRev) * std::stof(vFieldsData[0]);
-                    }
-                    break;
-                default :
-                    m_bIsMoving  = false;
-                    break;
-            }
-        }
+		switch(resp[0]) {
+			case 'V':
+				parseGINF(resp);
+				m_bIsMoving = false;
+				break;
+			case 'L':
+			case 'R':
+			case 'T':
+			case 'S':
+				m_bIsMoving  = true;
+				break;
+			case 'P':
+				m_bIsMoving  = true;
+				nConvErr = parseFields(resp, vFieldsData, 'P');
+				if(!nConvErr && m_nNbStepPerRev && vFieldsData.size()) {
+					m_dCurrentAzPosition = (360.0/m_nNbStepPerRev) * std::stof(vFieldsData[0]);
+				}
+				break;
+			default :
+				m_bIsMoving  = false;
+				break;
+		}
     }
 
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
