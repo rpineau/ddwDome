@@ -51,7 +51,7 @@ CddwDome::CddwDome()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_04_1825.\n", timestamp);
+	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_12_1830.\n", timestamp);
     fprintf(Logfile, "[%s] [CddwDome::CddwDome] Constructor Called.\n", timestamp);
     fflush(Logfile);
 #endif
@@ -490,7 +490,10 @@ bool CddwDome::isDomeMoving()
 		switch(resp[0]) {
 			case 'V':
 				parseGINF(resp);
-				m_bIsMoving = false;
+				if(std::stoi(m_svGinf[gShutter]) == UNKNOWN) // are we still opening but we got an INF record
+					m_bIsMoving = true;
+				else
+					m_bIsMoving = false;
 				break;
 			case 'L':
 			case 'R':
