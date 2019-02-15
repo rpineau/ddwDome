@@ -39,7 +39,7 @@
 #define DDW_DEBUG 2
 
 #define SERIAL_BUFFER_SIZE 4096
-#define MAX_TIMEOUT 1500
+#define MAX_TIMEOUT 5000
 #define ND_LOG_BUFFER_SIZE 256
 
 // field indexes in GINF
@@ -128,8 +128,8 @@ public:
 
 protected:
     
-    int             domeCommand(const char *szCmd, char *szResult, unsigned int nResultMaxLen);
-    int             readResponse(char *szRrespBuffer, unsigned int nBufferLen);
+    int             domeCommand(const char *szCmd, char *szResult, unsigned int nResultMaxLen, unsigned int nTimeout = MAX_TIMEOUT);
+    int             readResponse(char *szRrespBuffer, unsigned int nBufferLen, unsigned int nTimeout = MAX_TIMEOUT);
     int             readAllResponses(char *respBuffer, unsigned int bufferLen);   // read all the response, only keep the last one.
     int             getInfRecord();
 

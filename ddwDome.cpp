@@ -51,7 +51,7 @@ CddwDome::CddwDome()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_12_1830.\n", timestamp);
+	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_14_1215.\n", timestamp);
     fprintf(Logfile, "[%s] [CddwDome::CddwDome] Constructor Called.\n", timestamp);
     fflush(Logfile);
 #endif
@@ -129,7 +129,7 @@ void CddwDome::Disconnect()
 }
 
 
-int CddwDome::domeCommand(const char *cmd, char *result, unsigned int resultMaxLen)
+int CddwDome::domeCommand(const char *cmd, char *result, unsigned int resultMaxLen, unsigned int nTimeout)
 {
     int nErr = DDW_OK;
     char resp[SERIAL_BUFFER_SIZE];
@@ -159,7 +159,7 @@ int CddwDome::domeCommand(const char *cmd, char *result, unsigned int resultMaxL
         fprintf(Logfile, "[%s] [CddwDome::domeCommand] Getting response.\n", timestamp);
         fflush(Logfile);
     #endif
-        nErr = readResponse(resp, SERIAL_BUFFER_SIZE);
+        nErr = readResponse(resp, SERIAL_BUFFER_SIZE, nTimeout);
         if (nErr == DDW_TIMEOUT) {
             if(nNbTimeout >= nMaxNbTimeout) // make sure we don't end up in an infinite loop
                 return ERR_CMDFAILED;
@@ -183,7 +183,7 @@ int CddwDome::domeCommand(const char *cmd, char *result, unsigned int resultMaxL
 
 }
 
-int CddwDome::readResponse(char *respBuffer, unsigned int bufferLen)
+int CddwDome::readResponse(char *respBuffer, unsigned int bufferLen, unsigned int nTimeout)
 {
     int nErr = DDW_OK;
     unsigned long nBytesRead = 0;
@@ -194,7 +194,7 @@ int CddwDome::readResponse(char *respBuffer, unsigned int bufferLen)
     bufPtr = respBuffer;
 
     do {
-        nErr = pSerx->readFile(bufPtr, 1, nBytesRead, MAX_TIMEOUT);
+        nErr = pSerx->readFile(bufPtr, 1, nBytesRead, nTimeout);
         if(nErr) {
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
             ltime = time(NULL);
@@ -478,7 +478,7 @@ bool CddwDome::isDomeMoving()
     if(nErr) {
         if(nErr == DDW_TIMEOUT) {
             // is there a partial INF response in there.
-            if(strstr(resp, m_szFirmwareVersion))
+            if(resp[0] == 'V')
                 m_bIsMoving = false;
             else
                 m_bIsMoving = true; // we're probably still moving but haven't got  T or Pxxx since last time we checked
@@ -719,7 +719,7 @@ int CddwDome::openShutter()
 	fflush(Logfile);
 #endif
 
-	nErr = domeCommand("GOPN", resp, SERIAL_BUFFER_SIZE);
+	nErr = domeCommand("GOPN", resp, SERIAL_BUFFER_SIZE, 10000); // 10 second timeout
     if(nErr)
         return nErr;
 
@@ -782,7 +782,7 @@ int CddwDome::closeShutter()
 	fflush(Logfile);
 #endif
 
-	nErr = domeCommand("GCLS", resp, SERIAL_BUFFER_SIZE);
+	nErr = domeCommand("GCLS", resp, SERIAL_BUFFER_SIZE, 10000); // 10 second timeout
     if(nErr)
         return nErr;
 
