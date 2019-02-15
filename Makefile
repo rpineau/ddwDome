@@ -15,6 +15,7 @@ all: ${TARGET_LIB}
 
 $(TARGET_LIB): $(OBJS)
 	$(CC) ${LDFLAGS} -o $@ $^
+	$(STRIP) $@ >/dev/null 2>&1  || true
 
 $(SRCS:.cpp=.d):%.d:%.cpp
 	$(CC) $(CFLAGS) $(CPPFLAGS) -MM $< >$@
