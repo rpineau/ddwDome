@@ -51,7 +51,7 @@ CddwDome::CddwDome()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_15_1100.\n", timestamp);
+	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_19_1940.\n", timestamp);
     fprintf(Logfile, "[%s] [CddwDome::CddwDome] Constructor Called.\n", timestamp);
     fflush(Logfile);
 #endif
@@ -881,7 +881,13 @@ int CddwDome::goHome()
 {
     int nErr = DDW_OK;
     char resp[SERIAL_BUFFER_SIZE];
-
+	int nTmpAz;
+	int nTmphomeAz;
+	int nCoast;
+	bool bAtHome;
+	bool bIsGotoOneDegDone;
+	int nTimeout;
+	
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
@@ -914,18 +920,60 @@ int CddwDome::goHome()
         case 'V':
             parseGINF(resp);
             if(std::stoi(m_svGinf[gHome]) == AT_HOME) {  // we're already home ?
+				// check that the current position and the home position aggree
+				nTmpAz = std::stoi(m_svGinf[gADAZ]);
+				nTmphomeAz = std::stoi(m_svGinf[gHomeAz]);
+				nCoast = std::stoi(m_svGinf[gCoast]);
+				
+				if( nTmpAz < (nTmphomeAz - nCoast) || nTmpAz > (nTmphomeAz + nCoast)) {
+					// we're  home but the dome az i wrong, let's move off and back home, hopping the controller will correct the position
+					// when the sensor transition happens.
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+					ltime = time(NULL);
+					timestamp = asctime(localtime(&ltime));
+					timestamp[strlen(timestamp) - 1] = 0;
+					fprintf(Logfile, "[%s] [CddwDome::goHome] not home, moving 1 degree off\n", timestamp);
+					fflush(Logfile);
+#endif
+					bIsGotoOneDegDone = false;
+					nTimeout = 0;
+					gotoAzimuth(m_dCurrentAzPosition + 1); // move 1 degree off
+					do {
+						m_pSleeper->sleep(1000);
+						isGoToComplete(bIsGotoOneDegDone);
+						nTimeout++;
+					} while (!bIsGotoOneDegDone && nTimeout<60);	// 60 seconds of timeout should be enough
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+					ltime = time(NULL);
+					timestamp = asctime(localtime(&ltime));
+					timestamp[strlen(timestamp) - 1] = 0;
+					fprintf(Logfile, "[%s] [CddwDome::goHome] not home, moving back home\n", timestamp);
+					fflush(Logfile);
+#endif
+					bAtHome = false;
+					nTimeout = 0;
+					nErr = domeCommand("GHOM", resp, SERIAL_BUFFER_SIZE); // go back home
+					do {
+						m_pSleeper->sleep(1000);
+						isFindHomeComplete(bAtHome);
+						nTimeout++;
+					} while (!bAtHome && nTimeout<300); // the timeout is just here for safety (5 minutes).
+				}
                 m_bIsMoving = false;
             }
             break;
+			
         case 'L':
         case 'R':
         case 'T':
             nErr = DDW_OK;
             break;
-        case 'P':
+
+		case 'P':
             nErr = DDW_OK;
             break;
-        default :
+
+		default :
             nErr = DDW_BAD_CMD_RESPONSE;
             break;
     }
@@ -1298,7 +1346,7 @@ int CddwDome::abortCurrentCommand()
     fflush(Logfile);
 #endif
 
-    nErr = domeCommand("STOP", resp, SERIAL_BUFFER_SIZE);
+    nErr = domeCommand("STOP\n", resp, SERIAL_BUFFER_SIZE);
     if(nErr)
         return nErr;
     parseGINF(resp);
