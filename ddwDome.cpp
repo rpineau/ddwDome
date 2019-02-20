@@ -51,7 +51,7 @@ CddwDome::CddwDome()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_14_1215.\n", timestamp);
+	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_15_1100.\n", timestamp);
     fprintf(Logfile, "[%s] [CddwDome::CddwDome] Constructor Called.\n", timestamp);
     fflush(Logfile);
 #endif
@@ -111,7 +111,6 @@ int CddwDome::Connect(const char *szPort)
     // assume the dome was parked at home
     getDomeHomeAz(m_dCurrentAzPosition);
 
-    syncDome(m_dCurrentAzPosition, m_dCurrentElPosition);
     nErr = getShutterState(nState);
 
 
@@ -464,6 +463,17 @@ bool CddwDome::isDomeMoving()
     fflush(Logfile);
 #endif
 
+    if(!m_bIsMoving) {
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CddwDome::isDomeMoving] isMoving = %s, there was no movement initiated\n", timestamp, m_bIsMoving?"True":"False");
+        fflush(Logfile);
+#endif
+        return m_bIsMoving;
+    }
+
     // read as much as we can.
     nErr = readAllResponses(resp, SERIAL_BUFFER_SIZE);
 
@@ -671,6 +681,12 @@ int CddwDome::gotoAzimuth(double dNewAz)
         return nErr;
 	
     switch(resp[0]) {
+        case 'V':
+            parseGINF(resp);
+            m_bIsMoving = false;
+            m_nNbStepPerRev = std::stoi(m_svGinf[gDticks]);
+            m_dCurrentAzPosition = (360.0/m_nNbStepPerRev) * std::stof(m_svGinf[gADAZ]);
+            break;
         case 'L':
         case 'R':
         case 'T':
@@ -895,6 +911,12 @@ int CddwDome::goHome()
         return nErr;
 
     switch(resp[0]) {
+        case 'V':
+            parseGINF(resp);
+            if(std::stoi(m_svGinf[gHome]) == AT_HOME) {  // we're already home ?
+                m_bIsMoving = false;
+            }
+            break;
         case 'L':
         case 'R':
         case 'T':
@@ -979,8 +1001,11 @@ int CddwDome::isGoToComplete(bool &bComplete)
 
 	bComplete = false;
 
-    if(!m_bIsMoving)
-        return SB_OK;
+    if(!m_bIsMoving) { // case of a goto to current position.
+        bComplete = true;
+        nErr = getDomeAz(dDomeAz);
+        return nErr;
+    }
 
     if(isDomeMoving()) {
         return nErr;
@@ -1219,7 +1244,6 @@ int CddwDome::isCalibratingComplete(bool &bComplete)
         return NOT_CONNECTED;
 
     if(isDomeMoving()) {
-        nErr = getDomeAz(dDomeAz);
         bComplete = false;
         return nErr;
     }
@@ -1238,7 +1262,6 @@ int CddwDome::isCalibratingComplete(bool &bComplete)
     if (ceil(m_dHomeAz) != ceil(dDomeAz)) {
         // We need to resync the current position to the home position.
         m_dCurrentAzPosition = m_dHomeAz;
-        syncDome(m_dCurrentAzPosition, m_dCurrentElPosition);
         bComplete = true;
     }
 

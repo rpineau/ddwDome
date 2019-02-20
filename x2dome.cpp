@@ -483,7 +483,7 @@ int X2Dome::dapiSync(double dAz, double dEl)
 
     nErr = ddwDome.syncDome(dAz, dEl);
     if(nErr)
-        return ERR_CMDFAILED;
+        return nErr;
 	return SB_OK;
 }
 
