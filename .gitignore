@@ -9,5 +9,5 @@ Release
 *.pkg
 *.so
 *.pkg
-*.VC.db
+*.VC.*
 *.exe
