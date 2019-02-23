@@ -36,13 +36,13 @@ CddwDome::CddwDome()
 #if defined(SB_WIN_BUILD)
     m_sLogfilePath = getenv("HOMEDRIVE");
     m_sLogfilePath += getenv("HOMEPATH");
-    m_sLogfilePath += "\\DDWLog.txt";
+    m_sLogfilePath += "\\X2_DDWLog.txt";
 #elif defined(SB_LINUX_BUILD)
     m_sLogfilePath = getenv("HOME");
-    m_sLogfilePath += "/DDWLog.txt";
+    m_sLogfilePath += "/X2_DDWLog.txt";
 #elif defined(SB_MAC_BUILD)
     m_sLogfilePath = getenv("HOME");
-    m_sLogfilePath += "/DDWLog.txt";
+    m_sLogfilePath += "/X2_DDWLog.txt";
 #endif
     Logfile = fopen(m_sLogfilePath.c_str(), "w");
 #endif
@@ -51,7 +51,7 @@ CddwDome::CddwDome()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_19_1940.\n", timestamp);
+	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_22_1120.\n", timestamp);
     fprintf(Logfile, "[%s] [CddwDome::CddwDome] Constructor Called.\n", timestamp);
     fflush(Logfile);
 #endif
@@ -491,34 +491,36 @@ bool CddwDome::isDomeMoving()
             if(resp[0] == 'V')
                 m_bIsMoving = false;
             else
-                m_bIsMoving = true; // we're probably still moving but haven't got  T or Pxxx since last time we checked
+                m_bIsMoving = true; // we're probably still moving but haven't got  L,R,T,C,O,S or Pxxx since last time we checked
         }
         else
             m_bIsMoving = false;   // there was an actuel error ?
     }
     else if(strlen(resp)) {  // no error, let's look at the response
 		switch(resp[0]) {
-			case 'V':
+			case 'V':	// getting INF = we're done with the current opperation
 				parseGINF(resp);
 				if(std::stoi(m_svGinf[gShutter]) == UNKNOWN) // are we still opening but we got an INF record
 					m_bIsMoving = true;
 				else
 					m_bIsMoving = false;
 				break;
-			case 'L':
-			case 'R':
-			case 'T':
-			case 'S':
+			case 'L':	// moving Left
+			case 'R':	// movong Right
+			case 'T':	// Az Tick
+			case 'C':	// Closing shutter
+			case 'O':	// Opening shutter
+			case 'S':	// Manual ops
 				m_bIsMoving  = true;
 				break;
-			case 'P':
+			case 'P':	// moving and reporting position
 				m_bIsMoving  = true;
 				nConvErr = parseFields(resp, vFieldsData, 'P');
 				if(!nConvErr && m_nNbStepPerRev && vFieldsData.size()) {
 					m_dCurrentAzPosition = (360.0/m_nNbStepPerRev) * std::stof(vFieldsData[0]);
 				}
 				break;
-			default :
+			default :	// shouldn't happen !
 				m_bIsMoving  = false;
 				break;
 		}
