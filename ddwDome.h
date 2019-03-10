@@ -87,7 +87,7 @@ public:
     void        Disconnect(void);
     bool        IsConnected(void) { return m_bIsConnected; }
 
-    void        SetSerxPointer(SerXInterface *p) { pSerx = p; }
+    void        SetSerxPointer(SerXInterface *p) { m_pSerx = p; }
     void        setSleeper(SleeperInterface *pSleeper) { m_pSleeper = pSleeper; };
 
     // Dome commands
@@ -161,7 +161,7 @@ protected:
 
     double          m_dGotoAz;
     
-    SerXInterface   *pSerx;
+    SerXInterface   *m_pSerx;
     SleeperInterface    *m_pSleeper;
 
     char            m_szFirmwareVersion[SERIAL_BUFFER_SIZE];

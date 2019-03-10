@@ -11,7 +11,7 @@
 CddwDome::CddwDome()
 {
     // set some sane values
-    pSerx = NULL;
+    m_pSerx = NULL;
     m_bIsConnected = false;
 
     m_nNbStepPerRev = 0;
@@ -68,7 +68,7 @@ int CddwDome::Connect(const char *szPort)
     int nErr;
     int nState;
 
-    if(pSerx->open(szPort, 9600, SerXInterface::B_NOPARITY, "-DTR_CONTROL 1 -RTS_CONTROL 1") == 0)
+    if(m_pSerx->open(szPort, 9600, SerXInterface::B_NOPARITY, "-DTR_CONTROL 1 -RTS_CONTROL 1") == 0)
         m_bIsConnected = true;
     else
         m_bIsConnected = false;
@@ -96,7 +96,7 @@ int CddwDome::Connect(const char *szPort)
         fflush(Logfile);
 #endif
         m_bIsConnected = false;
-        pSerx->close();
+        m_pSerx->close();
         return FIRMWARE_NOT_SUPPORTED;
     }
 
@@ -121,8 +121,8 @@ int CddwDome::Connect(const char *szPort)
 void CddwDome::Disconnect()
 {
     if(m_bIsConnected) {
-        pSerx->purgeTxRx();
-        pSerx->close();
+        m_pSerx->purgeTxRx();
+        m_pSerx->close();
     }
     m_bIsConnected = false;
 }
@@ -137,7 +137,7 @@ int CddwDome::domeCommand(const char *cmd, char *result, unsigned int resultMaxL
     int nMaxNbTimeout = 3;
 
     do {
-        pSerx->purgeTxRx();
+        m_pSerx->purgeTxRx();
     #if defined DDW_DEBUG && DDW_DEBUG >= 2
         ltime = time(NULL);
         timestamp = asctime(localtime(&ltime));
@@ -146,8 +146,8 @@ int CddwDome::domeCommand(const char *cmd, char *result, unsigned int resultMaxL
         fflush(Logfile);
     #endif
 
-        nErr = pSerx->writeFile((void *)cmd, strlen(cmd), nBytesWrite);
-        pSerx->flushTx();
+        nErr = m_pSerx->writeFile((void *)cmd, strlen(cmd), nBytesWrite);
+        m_pSerx->flushTx();
         if(nErr)
             return nErr;
         // read response
@@ -193,7 +193,7 @@ int CddwDome::readResponse(char *respBuffer, unsigned int bufferLen, unsigned in
     bufPtr = respBuffer;
 
     do {
-        nErr = pSerx->readFile(bufPtr, 1, nBytesRead, nTimeout);
+        nErr = m_pSerx->readFile(bufPtr, 1, nBytesRead, nTimeout);
         if(nErr) {
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
             ltime = time(NULL);
@@ -247,7 +247,7 @@ int CddwDome::readAllResponses(char *respBuffer, unsigned int bufferLen)
 
 	memset(respBuffer, 0, bufferLen);
     do {
-        pSerx->bytesWaitingRx(nbByteWaiting);
+        m_pSerx->bytesWaitingRx(nbByteWaiting);
 		if(nbByteWaiting)
             nErr = readResponse(respBuffer, bufferLen);
     } while(nbByteWaiting);
