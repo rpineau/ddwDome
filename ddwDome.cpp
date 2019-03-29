@@ -51,7 +51,7 @@ CddwDome::CddwDome()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_02_22_1120.\n", timestamp);
+	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_03_27_1405.\n", timestamp);
     fprintf(Logfile, "[%s] [CddwDome::CddwDome] Constructor Called.\n", timestamp);
     fflush(Logfile);
 #endif
@@ -249,7 +249,7 @@ int CddwDome::readAllResponses(char *respBuffer, unsigned int bufferLen)
     do {
         m_pSerx->bytesWaitingRx(nbByteWaiting);
 		if(nbByteWaiting)
-            nErr = readResponse(respBuffer, bufferLen);
+            nErr = readResponse(respBuffer, bufferLen, 250);
     } while(nbByteWaiting);
 
     return nErr;
@@ -1333,8 +1333,7 @@ int CddwDome::isCalibratingComplete(bool &bComplete)
 int CddwDome::abortCurrentCommand()
 {
     int nErr;
-    char resp[SERIAL_BUFFER_SIZE];
-
+    
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
@@ -1348,10 +1347,7 @@ int CddwDome::abortCurrentCommand()
     fflush(Logfile);
 #endif
 
-    nErr = domeCommand("STOP\n", resp, SERIAL_BUFFER_SIZE);
-    if(nErr)
-        return nErr;
-    parseGINF(resp);
+    nErr = domeCommand("STOP\n", NULL, SERIAL_BUFFER_SIZE, 250);
 
     return nErr;
 }
