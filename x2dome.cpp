@@ -123,23 +123,24 @@ int X2Dome::execModalSettingsDialog()
 
 
     memset(tmpBuf,0,SERIAL_BUFFER_SIZE);
+    X2MutexLocker ml(GetMutex());
+
     // set controls state depending on the connection state
     if(m_bLinked) {
+        snprintf(tmpBuf,16,"%3.2f",ddwDome.getHomeAz());
+        dx->setText("homeAz", tmpBuf);
         snprintf(tmpBuf,16,"%d",ddwDome.getNbTicksPerRev());
-        dx->setPropertyString("ticksPerRev","text", tmpBuf);
-        dx->setEnabled("pushButton",true);
+        dx->setText("ticksPerRev",tmpBuf);
+        dx->setEnabled("pushButton", true);
     }
     else {
-        snprintf(tmpBuf,16,"NA");
-        dx->setPropertyString("ticksPerRev","text", tmpBuf);
-        dx->setEnabled("pushButton",false);
+        dx->setEnabled("pushButton", false);
+        dx->setText("homeAz", "");
+        dx->setText("ticksPerRev", "");
     }
-    dx->setPropertyDouble("homePosition","value", ddwDome.getHomeAz());
 
     mCalibratingDome = false;
     
-    X2MutexLocker ml(GetMutex());
-
     //Display the user interface
     if ((nErr = ui->exec(bPressedOK)))
         return nErr;
@@ -188,6 +189,8 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
                 // read step per rev from dome
                 snprintf(tmpBuf,16,"%d",ddwDome.getNbTicksPerRev());
                 uiex->setPropertyString("ticksPerRev","text", tmpBuf);
+                snprintf(tmpBuf,16,"%3.2f",ddwDome.getHomeAz());
+                uiex->setText("homeAz", tmpBuf);
                 mCalibratingDome = false;
                 
             }
