@@ -51,7 +51,7 @@ CddwDome::CddwDome()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_03_27_1405.\n", timestamp);
+	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_06_26_2030.\n", timestamp);
     fprintf(Logfile, "[%s] [CddwDome::CddwDome] Constructor Called.\n", timestamp);
     fflush(Logfile);
 #endif
@@ -63,18 +63,21 @@ CddwDome::~CddwDome()
 
 }
 
-int CddwDome::Connect(const char *szPort)
+int CddwDome::Connect(const char *szPort, bool bHardwareFlowControl)
 {
     int nErr;
     int nState;
 
-    if(m_pSerx->open(szPort, 9600, SerXInterface::B_NOPARITY, "-DTR_CONTROL 1 -RTS_CONTROL 1") == 0)
-        m_bIsConnected = true;
+    m_bIsConnected = true;
+    if(bHardwareFlowControl)
+        nErr = m_pSerx->open(szPort, 9600, SerXInterface::B_NOPARITY, "-DTR_CONTROL 1 -RTS_CONTROL 1");
     else
-        m_bIsConnected = false;
+        nErr = m_pSerx->open(szPort, 9600, SerXInterface::B_NOPARITY, "-DTR_CONTROL 1");
 
-    if(!m_bIsConnected)
+    if(nErr) {
+        m_bIsConnected = false;
         return ERR_COMMNOLINK;
+    }
 
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
     ltime = time(NULL);

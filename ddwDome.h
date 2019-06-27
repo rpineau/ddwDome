@@ -83,7 +83,7 @@ public:
     CddwDome();
     ~CddwDome();
 
-    int        Connect(const char *szPort);
+    int        Connect(const char *szPort, bool bHardwareFlowControl = true);
     void        Disconnect(void);
     bool        IsConnected(void) { return m_bIsConnected; }
 
