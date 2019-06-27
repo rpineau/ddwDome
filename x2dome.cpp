@@ -60,13 +60,14 @@ int X2Dome::establishLink(void)
     X2MutexLocker ml(GetMutex());
     // get serial port device name
     portNameOnToCharPtr(szPort,DRIVER_MAX_STRING);
-    nErr = ddwDome.Connect(szPort);
-    if(nErr)
-        m_bLinked = false;
-    else
-        m_bLinked = true;
-
-
+    m_bLinked = true;
+    // try to connect
+    nErr = ddwDome.Connect(szPort); // with hardware flow control (RTS/CTS)
+    if(nErr) {
+        nErr = ddwDome.Connect(szPort, false); // without hardware flow control
+        if(nErr)
+            m_bLinked = false;
+    }
     return nErr;
 }
 
