@@ -235,6 +235,7 @@ void X2Dome::deviceInfoDetailedDescription(BasicStringInterface& str) const
  void X2Dome::deviceInfoFirmwareVersion(BasicStringInterface& str)					
 {
     if(m_bLinked) {
+        X2MutexLocker ml(GetMutex());
         char cFirmware[SERIAL_BUFFER_SIZE];
         ddwDome.getFirmwareVersion(cFirmware, SERIAL_BUFFER_SIZE);
         str = cFirmware;
