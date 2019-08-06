@@ -114,7 +114,7 @@ int CddwDome::Connect(const char *szPort, bool bHardwareFlowControl)
 #endif
         m_bIsConnected = false;
         m_pSerx->close();
-        m_pSleeper->sleep(m_dInfRefreshInterval*1000);
+        m_pSleeper->sleep(int(m_dInfRefreshInterval*1000));
         return nErr;
     }
 
