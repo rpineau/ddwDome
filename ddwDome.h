@@ -36,10 +36,10 @@
 
 #include "StopWatch.h"
 
-// #define DDW_DEBUG 2
+#define DDW_DEBUG 2
 
 #define SERIAL_BUFFER_SIZE 4096
-#define MAX_TIMEOUT 5000
+#define MAX_TIMEOUT 1500
 #define ND_LOG_BUFFER_SIZE 256
 
 // field indexes in GINF
@@ -83,7 +83,7 @@ public:
     CddwDome();
     ~CddwDome();
 
-    int        Connect(const char *szPort, bool bHardwareFlowControl = true);
+    int        Connect(const char *szPort,  bool bHardwareFlowControl = true);
     void        Disconnect(void);
     bool        IsConnected(void) { return m_bIsConnected; }
 
@@ -138,8 +138,10 @@ protected:
     int             getDomeHomeAz(double &Az);
     int             getShutterState(int &state);
     int             getDomeStepPerRev(int &stepPerRev);
+    int             getCoast(double &dDeg);
 
     bool            isDomeMoving();
+    bool            isShutterMoving();
     bool            isDomeAtHome();
     
 
@@ -150,8 +152,11 @@ protected:
     LoggerInterface *mLogger;    
     bool            m_bIsConnected;
     bool            m_bParked;
-    bool            m_bIsMoving;
+    bool            m_bDomeIsMoving;
+    bool            m_bShutterIsMoving;
     int             m_nNbStepPerRev;
+    int             m_nNbStepCoast;
+
     double          m_dShutterBatteryVolts;
     double          m_dShutterBatteryPercent;
     double          m_dHomeAz;
@@ -160,7 +165,7 @@ protected:
     double          m_dCurrentElPosition;
 
     double          m_dGotoAz;
-    
+
     SerXInterface   *m_pSerx;
     SleeperInterface    *m_pSleeper;
 
@@ -172,6 +177,7 @@ protected:
     std::vector<std::string>    m_svGinf;
 
     CStopWatch      timer;
+    CStopWatch      dataReceivedTimer;
     float           m_dInfRefreshInterval;;
 
 #ifdef DDW_DEBUG
