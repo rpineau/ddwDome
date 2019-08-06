@@ -53,7 +53,7 @@ CddwDome::CddwDome()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_08_05_2115.\n", timestamp);
+	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_08_06_1345.\n", timestamp);
     fprintf(Logfile, "[%s] [CddwDome::CddwDome] Constructor Called.\n", timestamp);
     fflush(Logfile);
 #endif
@@ -603,23 +603,59 @@ bool CddwDome::isDomeMoving()
             // is there a partial INF response in there.
             if(resp[0] == 'V') {
                 m_bDomeIsMoving = false;
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+				ltime = time(NULL);
+				timestamp = asctime(localtime(&ltime));
+				timestamp[strlen(timestamp) - 1] = 0;
+				fprintf(Logfile, "[%s] [CddwDome::isDomeMoving] [DDW_TIMEOUT] resp starts with 'V', we're done moving\n", timestamp);
+				fflush(Logfile);
+#endif
             }
             else {
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+				ltime = time(NULL);
+				timestamp = asctime(localtime(&ltime));
+				timestamp[strlen(timestamp) - 1] = 0;
+				fprintf(Logfile, "[%s] [CddwDome::isDomeMoving] [DDW_TIMEOUT] resp doesn't starts with 'V', still moving ?\n", timestamp);
+				fflush(Logfile);
+#endif
                 m_bDomeIsMoving = true; // we're probably still moving but haven't got  L,R,T,C,O,S or Pxxx since last time we checked
             }
             
-            if(dataReceivedTimer.GetElapsedSeconds() > 30) {
+            if((dataReceivedTimer.GetElapsedSeconds() >= 30.0f) && m_bDomeIsMoving) {
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+				ltime = time(NULL);
+				timestamp = asctime(localtime(&ltime));
+				timestamp[strlen(timestamp) - 1] = 0;
+				fprintf(Logfile, "[%s] [CddwDome::isDomeMoving] [DDW_TIMEOUT] dataReceivedTimer.GetElapsedSeconds() = %3.2f\n", timestamp, dataReceivedTimer.GetElapsedSeconds());
+				fflush(Logfile);
+#endif
                 // we might have missed the GINV response, send a GINV
                 m_bDomeIsMoving = false;
                 nErr = getInfRecord();
             }
         }
-        else
-            m_bDomeIsMoving = false;   // there was an actuel error ?
+		else {
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+			ltime = time(NULL);
+			timestamp = asctime(localtime(&ltime));
+			timestamp[strlen(timestamp) - 1] = 0;
+			fprintf(Logfile, "[%s] [CddwDome::isDomeMoving] [DDW_TIMEOUT] no response from dome, let's assume it stopped ?\n", timestamp);
+			fflush(Logfile);
+#endif
+			m_bDomeIsMoving = false;   // there was an actuel error ?
+		}
     }
     else if(strlen(resp)) {  // no error, let's look at the response
 		switch(resp[0]) {
 			case 'V':	// getting INF = we're done with the current opperation
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+				ltime = time(NULL);
+				timestamp = asctime(localtime(&ltime));
+				timestamp[strlen(timestamp) - 1] = 0;
+				fprintf(Logfile, "[%s] [CddwDome::isDomeMoving] resp[0] is 'V', we're done moving\n", timestamp);
+				fflush(Logfile);
+#endif
                 m_bDomeIsMoving = false;
                 nErr = getInfRecord();
                 dataReceivedTimer.Reset();
@@ -630,8 +666,22 @@ bool CddwDome::isDomeMoving()
 			case 'S':	// Manual ops
 				m_bDomeIsMoving  = true;
                 dataReceivedTimer.Reset();
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+				ltime = time(NULL);
+				timestamp = asctime(localtime(&ltime));
+				timestamp[strlen(timestamp) - 1] = 0;
+				fprintf(Logfile, "[%s] [CddwDome::isDomeMoving] resp[0] is in [L,R,T,S], we're still moving\n", timestamp);
+				fflush(Logfile);
+#endif
 				break;
 			case 'P':	// moving and reporting position
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+				ltime = time(NULL);
+				timestamp = asctime(localtime(&ltime));
+				timestamp[strlen(timestamp) - 1] = 0;
+				fprintf(Logfile, "[%s] [CddwDome::isDomeMoving] resp[0] is 'P' we're still moving and updating position\n", timestamp);
+				fflush(Logfile);
+#endif
 				m_bDomeIsMoving  = true;
 				nConvErr = parseFields(resp, vFieldsData, 'P');
 				if(!nConvErr && m_nNbStepPerRev && vFieldsData.size()) {
