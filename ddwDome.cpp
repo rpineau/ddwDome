@@ -865,11 +865,6 @@ int CddwDome::parkDome()
 #endif
 
     nErr = goHome();
-    if(nErr != DDW_TIMEOUT)
-        return nErr;
-
-    m_bDomeIsMoving = true;
-
     return nErr;
 }
 
@@ -898,10 +893,6 @@ int CddwDome::unparkDome()
 
     m_bParked = false;
     nErr = goHome();
-	if(nErr != DDW_TIMEOUT)
-        return nErr;
-
-    m_bDomeIsMoving = true;
     return nErr;
 }
 
@@ -938,46 +929,42 @@ int CddwDome::gotoAzimuth(double dNewAz)
 	m_dGotoAz = dNewAz;
     snprintf(buf, SERIAL_BUFFER_SIZE, "G%03d", int(dNewAz));
     nErr = domeCommand(buf, resp, SERIAL_BUFFER_SIZE);
-    if(nErr && nErr != DDW_TIMEOUT) {
-#if defined DDW_DEBUG && DDW_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CddwDome::gotoAzimuth] command error %d\n", timestamp, nErr);
-        fflush(Logfile);
-#endif
+    if(nErr) {
         return nErr;
     }
-    switch(resp[0]) {
-        case 'V':
-            parseGINF(resp);
-            m_bDomeIsMoving = false;
-            m_nNbStepPerRev = std::stoi(m_svGinf[gDticks]);
-            m_dCurrentAzPosition = (360.0/m_nNbStepPerRev) * std::stof(m_svGinf[gADAZ]);
-#if defined DDW_DEBUG && DDW_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CddwDome::gotoAzimuth] GINF response means the goto is too small to move the dome. So goto is done. m_bDomeIsMoving=%s\n", timestamp, m_bDomeIsMoving?"True":"False");
-            fflush(Logfile);
-#endif
-            break;
-        case 'L':
-        case 'R':
-        case 'T':
-            m_bDomeIsMoving = true;
-            nErr = DDW_OK;
-            break;
 
-        case 'P':
-            m_bDomeIsMoving = true;
-            nErr = DDW_OK;
-            break;
+    if(strlen(resp)) {  // no error, let's look at the response
+        switch(resp[0]) {
+            case 'V':
+                parseGINF(resp);
+                m_bDomeIsMoving = false;
+                m_nNbStepPerRev = std::stoi(m_svGinf[gDticks]);
+                m_dCurrentAzPosition = (360.0/m_nNbStepPerRev) * std::stof(m_svGinf[gADAZ]);
+    #if defined DDW_DEBUG && DDW_DEBUG >= 2
+                ltime = time(NULL);
+                timestamp = asctime(localtime(&ltime));
+                timestamp[strlen(timestamp) - 1] = 0;
+                fprintf(Logfile, "[%s] [CddwDome::gotoAzimuth] GINF response means the goto is too small to move the dome. So goto is done. m_bDomeIsMoving=%s\n", timestamp, m_bDomeIsMoving?"True":"False");
+                fflush(Logfile);
+    #endif
+                break;
+            case 'L':
+            case 'R':
+            case 'T':
+                m_bDomeIsMoving = true;
+                nErr = DDW_OK;
+                break;
 
-        default :
-            m_bDomeIsMoving = false;
-            nErr = DDW_BAD_CMD_RESPONSE;
-            break;
+            case 'P':
+                m_bDomeIsMoving = true;
+                nErr = DDW_OK;
+                break;
+
+            default :
+                m_bDomeIsMoving = false;
+                nErr = DDW_BAD_CMD_RESPONSE;
+                break;
+        }
     }
     dataReceivedTimer.Reset();
 
@@ -1226,74 +1213,76 @@ int CddwDome::goHome()
         return ERR_COMMANDINPROGRESS;
 	}
 
-	m_bDomeIsMoving = true;
 
     nErr = domeCommand("GHOM", resp, SERIAL_BUFFER_SIZE);
-    if(nErr)
+    if(nErr) {
         return nErr;
-
-    switch(resp[0]) {
-        case 'V':
-            parseGINF(resp);
-            if(std::stoi(m_svGinf[gHome]) == AT_HOME) {  // we're already home ?
-				// check that the current position and the home position aggree
-				nTmpAz = std::stoi(m_svGinf[gADAZ]);
-				nTmphomeAz = std::stoi(m_svGinf[gHomeAz]);
-				nCoast = std::stoi(m_svGinf[gCoast]);
-				
-				if( nTmpAz < (nTmphomeAz - nCoast) || nTmpAz > (nTmphomeAz + nCoast)) {
-					// we're  home but the dome az i wrong, let's move off and back home, hopping the controller will correct the position
-					// when the sensor transition happens.
-#if defined DDW_DEBUG && DDW_DEBUG >= 2
-					ltime = time(NULL);
-					timestamp = asctime(localtime(&ltime));
-					timestamp[strlen(timestamp) - 1] = 0;
-					fprintf(Logfile, "[%s] [CddwDome::goHome] not home, moving 1 degree off\n", timestamp);
-					fflush(Logfile);
-#endif
-					bIsGotoOneDegDone = false;
-					nTimeout = 0;
-					gotoAzimuth(m_dCurrentAzPosition + 1); // move 1 degree off
-					do {
-						m_pSleeper->sleep(1000);
-						isGoToComplete(bIsGotoOneDegDone);
-						nTimeout++;
-					} while (!bIsGotoOneDegDone && nTimeout<60);	// 60 seconds of timeout should be enough
-#if defined DDW_DEBUG && DDW_DEBUG >= 2
-					ltime = time(NULL);
-					timestamp = asctime(localtime(&ltime));
-					timestamp[strlen(timestamp) - 1] = 0;
-					fprintf(Logfile, "[%s] [CddwDome::goHome] not home, moving back home\n", timestamp);
-					fflush(Logfile);
-#endif
-					bAtHome = false;
-					nTimeout = 0;
-					nErr = domeCommand("GHOM", resp, SERIAL_BUFFER_SIZE); // go back home
-					do {
-						m_pSleeper->sleep(1000);
-						isFindHomeComplete(bAtHome);
-						nTimeout++;
-					} while (!bAtHome && nTimeout<300); // the timeout is just here for safety (5 minutes).
-				}
-                m_bDomeIsMoving = false;
-            }
-            break;
-			
-        case 'L':
-        case 'R':
-        case 'T':
-            nErr = DDW_OK;
-            break;
-
-		case 'P':
-            nErr = DDW_OK;
-            break;
-
-		default :
-            nErr = DDW_BAD_CMD_RESPONSE;
-            break;
     }
+    m_bDomeIsMoving = true;
+    
+    if(strlen(resp)) {  // no error, let's look at the response
+        switch(resp[0]) {
+            case 'V':
+                parseGINF(resp);
+                if(std::stoi(m_svGinf[gHome]) == AT_HOME) {  // we're already home ?
+                    // check that the current position and the home position aggree
+                    nTmpAz = std::stoi(m_svGinf[gADAZ]);
+                    nTmphomeAz = std::stoi(m_svGinf[gHomeAz]);
+                    nCoast = std::stoi(m_svGinf[gCoast]);
+                    
+                    if( nTmpAz < (nTmphomeAz - nCoast) || nTmpAz > (nTmphomeAz + nCoast)) {
+                        // we're  home but the dome az i wrong, let's move off and back home, hopping the controller will correct the position
+                        // when the sensor transition happens.
+    #if defined DDW_DEBUG && DDW_DEBUG >= 2
+                        ltime = time(NULL);
+                        timestamp = asctime(localtime(&ltime));
+                        timestamp[strlen(timestamp) - 1] = 0;
+                        fprintf(Logfile, "[%s] [CddwDome::goHome] not home, moving 1 degree off\n", timestamp);
+                        fflush(Logfile);
+    #endif
+                        bIsGotoOneDegDone = false;
+                        nTimeout = 0;
+                        gotoAzimuth(m_dCurrentAzPosition + 1); // move 1 degree off
+                        do {
+                            m_pSleeper->sleep(1000);
+                            isGoToComplete(bIsGotoOneDegDone);
+                            nTimeout++;
+                        } while (!bIsGotoOneDegDone && nTimeout<60);	// 60 seconds of timeout should be enough
+    #if defined DDW_DEBUG && DDW_DEBUG >= 2
+                        ltime = time(NULL);
+                        timestamp = asctime(localtime(&ltime));
+                        timestamp[strlen(timestamp) - 1] = 0;
+                        fprintf(Logfile, "[%s] [CddwDome::goHome] not home, moving back home\n", timestamp);
+                        fflush(Logfile);
+    #endif
+                        bAtHome = false;
+                        nTimeout = 0;
+                        nErr = domeCommand("GHOM", resp, SERIAL_BUFFER_SIZE); // go back home
+                        do {
+                            m_pSleeper->sleep(1000);
+                            isFindHomeComplete(bAtHome);
+                            nTimeout++;
+                        } while (!bAtHome && nTimeout<300); // the timeout is just here for safety (5 minutes).
+                    }
+                    m_bDomeIsMoving = false;
+                }
+                break;
+                
+            case 'L':
+            case 'R':
+            case 'T':
+                nErr = DDW_OK;
+                break;
 
+            case 'P':
+                nErr = DDW_OK;
+                break;
+
+            default :
+                nErr = DDW_BAD_CMD_RESPONSE;
+                break;
+        }
+    }
     dataReceivedTimer.Reset();
     return nErr;
 }
@@ -1718,7 +1707,9 @@ int CddwDome::getInfRecord()
     fflush(Logfile);
 #endif
     // parse INF packet
-    parseGINF(resp);
+    if(strlen(resp))  // no error, let's look at the response
+        parseGINF(resp);
+
     timer.Reset();
     return nErr;
 }
