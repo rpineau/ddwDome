@@ -36,10 +36,10 @@
 
 #include "StopWatch.h"
 
-// #define DDW_DEBUG 2
+#define DDW_DEBUG 2
 
 #define SERIAL_BUFFER_SIZE 4096
-#define MAX_TIMEOUT 1500
+#define MAX_TIMEOUT 2000
 #define ND_LOG_BUFFER_SIZE 256
 
 // field indexes in GINF

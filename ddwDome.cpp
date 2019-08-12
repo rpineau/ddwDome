@@ -53,7 +53,7 @@ CddwDome::CddwDome()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_08_06_1345.\n", timestamp);
+	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_08_11_1945.\n", timestamp);
     fprintf(Logfile, "[%s] [CddwDome::CddwDome] Constructor Called.\n", timestamp);
     fflush(Logfile);
 #endif
@@ -79,7 +79,6 @@ int CddwDome::Connect(const char *szPort, bool bHardwareFlowControl)
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
     fprintf(Logfile, "[%s] [CddwDome::Connect] Connecting to %s with%s hardware control.\n", timestamp, szPort, bHardwareFlowControl?"":"out");
-    fprintf(Logfile, "[%s] [CddwDome::Connect] Getting Firmware.\n", timestamp);
     fflush(Logfile);
 #endif
 
@@ -935,36 +934,61 @@ int CddwDome::gotoAzimuth(double dNewAz)
     fprintf(Logfile, "[%s] [CddwDome::gotoAzimuth] GoTo %3.2f\n", timestamp, dNewAz);
     fflush(Logfile);
 #endif
-
-	m_bDomeIsMoving = true;
+    m_bDomeIsMoving = false;    // let's not assume it's moving
 	m_dGotoAz = dNewAz;
     snprintf(buf, SERIAL_BUFFER_SIZE, "G%03d", int(dNewAz));
     nErr = domeCommand(buf, resp, SERIAL_BUFFER_SIZE);
-    if(nErr != DDW_TIMEOUT)
+    if(nErr && nErr != DDW_TIMEOUT) {
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CddwDome::gotoAzimuth] command error %d\n", timestamp, nErr);
+        fflush(Logfile);
+#endif
         return nErr;
-	
+    }
     switch(resp[0]) {
         case 'V':
             parseGINF(resp);
             m_bDomeIsMoving = false;
             m_nNbStepPerRev = std::stoi(m_svGinf[gDticks]);
             m_dCurrentAzPosition = (360.0/m_nNbStepPerRev) * std::stof(m_svGinf[gADAZ]);
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+            ltime = time(NULL);
+            timestamp = asctime(localtime(&ltime));
+            timestamp[strlen(timestamp) - 1] = 0;
+            fprintf(Logfile, "[%s] [CddwDome::gotoAzimuth] GINF response means the goto is too small to move the dome. So goto is done. m_bDomeIsMoving=%s\n", timestamp, m_bDomeIsMoving?"True":"False");
+            fflush(Logfile);
+#endif
             break;
         case 'L':
         case 'R':
         case 'T':
+            m_bDomeIsMoving = true;
             nErr = DDW_OK;
             break;
 
         case 'P':
+            m_bDomeIsMoving = true;
             nErr = DDW_OK;
             break;
 
         default :
+            m_bDomeIsMoving = false;
             nErr = DDW_BAD_CMD_RESPONSE;
             break;
     }
     dataReceivedTimer.Reset();
+
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::gotoAzimuth] m_dCurrentAzPosition = %3.2f, m_bDomeIsMoving = %s, m_bShutterIsMoving = %s\n", timestamp, m_dCurrentAzPosition, m_bDomeIsMoving?"True":"False", m_bShutterIsMoving?"True":"False");
+    fflush(Logfile);
+#endif
+
     return nErr;
 }
 
@@ -1347,6 +1371,13 @@ int CddwDome::isGoToComplete(bool &bComplete)
     if(!m_bDomeIsMoving && !m_bShutterIsMoving) { // case of a goto to current position.
         bComplete = true;
         nErr = getDomeAz(dDomeAz);
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CddwDome::isGoToComplete] dDomeAz = %3.2f, m_bDomeIsMoving = %s, m_bShutterIsMoving = %s, bComplete = %s\n", timestamp, dDomeAz, m_bDomeIsMoving?"True":"False", m_bShutterIsMoving?"True":"False", bComplete?"True":"False");
+        fflush(Logfile);
+#endif
         return nErr;
     }
 
