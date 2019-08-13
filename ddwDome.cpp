@@ -598,7 +598,7 @@ bool CddwDome::isDomeMoving()
 #endif
 
     if(nErr) {
-        if(nErr == DDW_TIMEOUT) {
+        if(nErr == DDW_TIMEOUT && strlen(resp)) {
             // is there a partial INF response in there.
             if(resp[0] == 'V') {
                 m_bDomeIsMoving = false;
@@ -743,9 +743,9 @@ bool CddwDome::isShutterMoving()
     fprintf(Logfile, "[%s] [CddwDome::isShutterMoving] resp = %s\n", timestamp, resp);
     fflush(Logfile);
 #endif
-    
+    m_bShutterIsMoving = false;
     if(nErr) {
-        if(nErr == DDW_TIMEOUT) {
+        if(nErr == DDW_TIMEOUT && strlen(resp)) {
             // is there a partial INF response in there.
             if(resp[0] == 'V') {
                 m_bShutterIsMoving = false;
@@ -1009,6 +1009,7 @@ int CddwDome::openShutter()
 	fflush(Logfile);
 #endif
 
+	m_bShutterIsMoving = false;
 	nErr = domeCommand("GOPN", resp, SERIAL_BUFFER_SIZE, 10000); // 10 second timeout
     if(nErr)
         return nErr;
@@ -1073,7 +1074,7 @@ int CddwDome::closeShutter()
 	fprintf(Logfile, "[%s] [CddwDome::closeShutter]\n", timestamp);
 	fflush(Logfile);
 #endif
-
+	m_bShutterIsMoving = false;
 	nErr = domeCommand("GCLS", resp, SERIAL_BUFFER_SIZE, 10000); // 10 second timeout
     if(nErr)
         return nErr;
@@ -1213,13 +1214,12 @@ int CddwDome::goHome()
         return ERR_COMMANDINPROGRESS;
 	}
 
-
+	m_bDomeIsMoving = false;
     nErr = domeCommand("GHOM", resp, SERIAL_BUFFER_SIZE);
     if(nErr) {
         return nErr;
     }
-    m_bDomeIsMoving = true;
-    
+
     if(strlen(resp)) {  // no error, let's look at the response
         switch(resp[0]) {
             case 'V':
@@ -1231,7 +1231,7 @@ int CddwDome::goHome()
                     nCoast = std::stoi(m_svGinf[gCoast]);
                     
                     if( nTmpAz < (nTmphomeAz - nCoast) || nTmpAz > (nTmphomeAz + nCoast)) {
-                        // we're  home but the dome az i wrong, let's move off and back home, hopping the controller will correct the position
+                        // we're  home but the dome az is wrong, let's move off and back home, hopping the controller will correct the position
                         // when the sensor transition happens.
     #if defined DDW_DEBUG && DDW_DEBUG >= 2
                         ltime = time(NULL);
@@ -1242,7 +1242,7 @@ int CddwDome::goHome()
     #endif
                         bIsGotoOneDegDone = false;
                         nTimeout = 0;
-                        gotoAzimuth(m_dCurrentAzPosition + 1); // move 1 degree off
+						gotoAzimuth(m_dCurrentAzPosition + std::stof(m_svGinf[gINTDZ])+1.0); // move by INTDZ+1 degree off to make sure there is a movement
                         do {
                             m_pSleeper->sleep(1000);
                             isGoToComplete(bIsGotoOneDegDone);
@@ -1262,7 +1262,7 @@ int CddwDome::goHome()
                             m_pSleeper->sleep(1000);
                             isFindHomeComplete(bAtHome);
                             nTimeout++;
-                        } while (!bAtHome && nTimeout<300); // the timeout is just here for safety (5 minutes).
+                        } while (!bAtHome && nTimeout<60); // the timeout is just here for safety (1 minute).
                     }
                     m_bDomeIsMoving = false;
                 }
@@ -1272,14 +1272,17 @@ int CddwDome::goHome()
             case 'R':
             case 'T':
                 nErr = DDW_OK;
+				m_bDomeIsMoving = true;
                 break;
 
             case 'P':
                 nErr = DDW_OK;
+				m_bDomeIsMoving = true;
                 break;
 
             default :
                 nErr = DDW_BAD_CMD_RESPONSE;
+				m_bDomeIsMoving = false;
                 break;
         }
     }
@@ -1316,19 +1319,22 @@ int CddwDome::calibrate()
     fflush(Logfile);
 #endif
 
-	m_bDomeIsMoving = true;
-	
+	m_bDomeIsMoving = false;
+
     nErr = domeCommand("GTRN", resp, SERIAL_BUFFER_SIZE);
     if(nErr)
         return nErr;
+
     switch(resp[0]) {
         case 'L':
         case 'R':
         case 'T':
             nErr = DDW_OK;
+			m_bDomeIsMoving = true;
             break;
         case 'P':
             nErr = DDW_OK;
+			m_bDomeIsMoving = true;
             break;
         default :
             nErr = DDW_BAD_CMD_RESPONSE;
