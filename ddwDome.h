@@ -36,7 +36,7 @@
 
 #include "StopWatch.h"
 
-// #define DDW_DEBUG 2
+#define DDW_DEBUG 2
 
 #define SERIAL_BUFFER_SIZE 4096
 #define MAX_TIMEOUT 2000
@@ -135,10 +135,11 @@ protected:
 
     int             getDomeAz(double &domeAz);
     int             getDomeEl(double &domeEl);
-    int             getDomeHomeAz(double &Az);
-    int             getShutterState(int &state);
-    int             getDomeStepPerRev(int &stepPerRev);
-    int             getCoast(double &dDeg);
+    int             getDomeHomeAz();
+    int             getShutterState();
+    int             getDomeStepPerRev();
+    int             getCoast();
+    int             getDeadZone();
 
     bool            isDomeMoving();
     bool            isShutterMoving();
@@ -155,7 +156,6 @@ protected:
     bool            m_bDomeIsMoving;
     bool            m_bShutterIsMoving;
     int             m_nNbStepPerRev;
-    int             m_nNbStepCoast;
 
     double          m_dShutterBatteryVolts;
     double          m_dShutterBatteryPercent;
@@ -163,6 +163,9 @@ protected:
     
     double          m_dCurrentAzPosition;
     double          m_dCurrentElPosition;
+
+    double          m_dCoastDeg;
+    double          m_dDeadZoneDeg;
 
     double          m_dGotoAz;
 

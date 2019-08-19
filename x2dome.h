@@ -28,7 +28,7 @@ class MutexInterface;
 class BasicIniUtilInterface;
 class TickCountInterface;
 
-#define DRIVER_VERSION      1.5
+#define DRIVER_VERSION      1.52
 
 #define PARENT_KEY			"ddwDome"
 #define CHILD_KEY_PORTNAME	"PortName"
