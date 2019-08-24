@@ -1558,16 +1558,17 @@ bool CddwDome::isShutterMoving()
 #endif
     m_bShutterIsMoving = false;
     if(nErr) {
-        if(nErr == DDW_TIMEOUT && strlen(resp)) {
-            // is there a partial INF response in there.
-            if(resp[0] == 'V') {
-                m_bShutterIsMoving = false;
+        if(nErr == DDW_TIMEOUT) {
+            if(strlen(resp)) {
+                // is there a partial INF response in there.
+                if(resp[0] == 'V') {
+                    m_bShutterIsMoving = false;
+                }
+                else {
+                    m_bShutterIsMoving = true; // we're probably still moving but haven't got C,O,S or V since last time we checked
+                }
             }
-            else {
-                m_bShutterIsMoving = true; // we're probably still moving but haven't got C,O,S or V since last time we checked
-            }
-            
-            if(dataReceivedTimer.GetElapsedSeconds() > 30) {
+            if(dataReceivedTimer.GetElapsedSeconds() > 30.0f && m_bShutterIsMoving) {
                 // we might have missed the GINV response, send a GINV
                 m_bShutterIsMoving = false;
                 nErr = getInfRecord();
@@ -1614,7 +1615,10 @@ bool CddwDome::isShutterMoving()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CddwDome::isShutterMoving] m_bShutterIsMoving = %s\n", timestamp, m_bShutterIsMoving?"True":"False");
+    fprintf(Logfile, "[%s] [CddwDome::isShutterMoving]m_bShutterIsMoving = %s\n", timestamp, m_bShutterIsMoving?"True":"False");
+    if(nErr) {
+        fprintf(Logfile, "[%s] [CddwDome::isShutterMoving] nErr = %s\n", timestamp, nErr == DDW_TIMEOUT?"DDW_TIMEOUT":"Other");
+    }
     fflush(Logfile);
 #endif
     
@@ -1707,14 +1711,12 @@ int CddwDome::isGoToComplete(bool &bComplete)
         return nErr;
     }
 
-
     nErr = getDomeAz(dDomeAz);
     if(nErr)
         return nErr;
 
     if ((ceil(m_dGotoAz) <= (ceil(dDomeAz) + m_dCoastDeg) ) && (ceil(m_dGotoAz) >= (ceil(dDomeAz) - m_dCoastDeg) )) {
         bComplete = true;
-        m_bDomeIsMoving = false;
     }
     else {
         // we're not moving and we're not at the final destination !!!
@@ -1752,42 +1754,23 @@ int CddwDome::isOpenComplete(bool &bComplete)
         return nErr;
     }
 
-    // check state, if we're not moving we got a INF packet
-    try {
-        if(std::stoi(m_svGinf[gShutter]) != OPEN) {
-            // still not done
-            bComplete = false;
-            return nErr;
-        }
-    } catch(const std::exception& e) {
-#if defined DDW_DEBUG && DDW_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CddwDome::isOpenComplete] std::stof exception : %s\n", timestamp, e.what());
-        fflush(Logfile);
-#endif
-        return ERR_CMDFAILED;
-    }
+    bComplete = true;
 
     nErr = getShutterState();
-    if(nErr)
-        return nErr;
-	
-    if(m_bShutterOpened){
-        bComplete = true;
-        m_dCurrentElPosition = 90.0;
+    if(!nErr) {
+        if(m_bShutterOpened){
+            m_dCurrentElPosition = 90.0;
+            nErr =  ERR_CMDFAILED;  // we're done opening and yet it's not open !
+        }
+        else {
+            m_dCurrentElPosition = 0.0;
+        }
     }
-    else {
-        bComplete = false;
-        m_dCurrentElPosition = 0.0;
-    }
-
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CddwDome::isOpenComplete] bComplete = %s\n", timestamp, bComplete?"True":"False");
+    fprintf(Logfile, "[%s] [CddwDome::isOpenComplete] bComplete = %s, nErr = %d\n", timestamp, bComplete?"True":"False", nErr);
     fflush(Logfile);
 #endif
 
@@ -1801,46 +1784,28 @@ int CddwDome::isCloseComplete(bool &bComplete)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+    bComplete = false;
     if(isShutterMoving()) {
-        bComplete = false;
         return nErr;
     }
-
-    // check state, if we're not moving we got a INF packet
-    try {
-        if(std::stoi(m_svGinf[gShutter]) != CLOSED) {
-            // still not done
-            bComplete = false;
-            return nErr;
-        }
-    } catch(const std::exception& e) {
-#if defined DDW_DEBUG && DDW_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CddwDome::isCloseComplete] std::stof exception : %s\n", timestamp, e.what());
-        fflush(Logfile);
-#endif
-        return ERR_CMDFAILED;
-    }
+    // Shutter is not not moving anymore. so the close is done and now we check for errors.
+    bComplete = true;
 
     nErr = getShutterState();
-    if(nErr)
-        return ERR_CMDFAILED;
-    if(!m_bShutterOpened){
-        bComplete = true;
-        m_dCurrentElPosition = 0.0;
+    if(!nErr) {
+        if(!m_bShutterOpened){
+            m_dCurrentElPosition = 0.0;
+        }
+        else {
+            m_dCurrentElPosition = 90.0;
+            nErr = ERR_CMDFAILED; // we're done closing and yet it's not closed !
+        }
     }
-    else {        m_bShutterOpened = true;
-        bComplete = false;
-        m_dCurrentElPosition = 90.0;
-    }
-
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CddwDome::isCloseComplete] bComplete = %s\n", timestamp, bComplete?"True":"False");
+    fprintf(Logfile, "[%s] [CddwDome::isCloseComplete] bComplete = %s, nErr = %d\n", timestamp, bComplete?"True":"False", nErr);
     fflush(Logfile);
 #endif
 
