@@ -211,7 +211,7 @@ int CddwDome::domeCommand(const char *cmd, char *result, unsigned int resultMaxL
 
     do {
         m_pSerx->purgeTxRx();
-    #if defined DDW_DEBUG && DDW_DEBUG >= 2
+    #if defined DDW_DEBUG
         ltime = time(NULL);
         timestamp = asctime(localtime(&ltime));
         timestamp[strlen(timestamp) - 1] = 0;
@@ -240,7 +240,7 @@ int CddwDome::domeCommand(const char *cmd, char *result, unsigned int resultMaxL
         }
     } while (nErr == DDW_TIMEOUT);
 	
-#if defined DDW_DEBUG && DDW_DEBUG >= 2
+#if defined DDW_DEBUG
 	ltime = time(NULL);
 	timestamp = asctime(localtime(&ltime));
 	timestamp[strlen(timestamp) - 1] = 0;
