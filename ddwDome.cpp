@@ -58,7 +58,7 @@ CddwDome::CddwDome()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_08_25_0650.\n", timestamp);
+	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_08_25_0930.\n", timestamp);
     fprintf(Logfile, "[%s] [CddwDome::CddwDome] Constructor Called.\n", timestamp);
     fflush(Logfile);
 #endif
@@ -630,12 +630,13 @@ int CddwDome::getShutterState()
 #endif
 
 
-	if(m_bShutterIsMoving) {
+	// if(m_bShutterIsMoving) {
+	if(m_bDomeIsMoving) {
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
 		ltime = time(NULL);
 		timestamp = asctime(localtime(&ltime));
 		timestamp[strlen(timestamp) - 1] = 0;
-		fprintf(Logfile, "[%s] [CddwDome::getShutterState] Movement in progress m_bShutterIsMoving = %s\n", timestamp, m_bShutterIsMoving?"True":"False");
+		fprintf(Logfile, "[%s] [CddwDome::getShutterState] Movement in progress m_bDomeIsMoving = %s\n", timestamp, m_bDomeIsMoving?"True":"False");
 		fflush(Logfile);
 #endif
 		return ERR_COMMANDINPROGRESS;
@@ -1108,7 +1109,8 @@ int CddwDome::openShutter()
     if(nErr)
         return nErr;
 
-    m_bShutterIsMoving = true;
+    // m_bShutterIsMoving = true;
+	m_bDomeIsMoving = true;
 	if(strlen(szResp) && szResp[0] == 'V') {
 		//if we got an INF packet we're not moving
 		m_bShutterIsMoving = false;
@@ -1175,10 +1177,12 @@ int CddwDome::closeShutter()
     if(nErr)
         return nErr;
 
-    m_bShutterIsMoving = true;
+	// m_bShutterIsMoving = true;
+	m_bDomeIsMoving = true;
 	if(strlen(szResp) && szResp[0] == 'V') {
 		//if we got an INF packet we're not moving
 		m_bShutterIsMoving = false;
+		m_bDomeIsMoving = false;
 		parseGINF(szResp);
         try {
             shutterState = std::stoi(m_svGinf[gShutter]);
@@ -1211,8 +1215,6 @@ int CddwDome::closeShutter()
 }
 
 
-
-
 int CddwDome::parkDome()
 {
     int nErr = DDW_OK;
@@ -1238,7 +1240,6 @@ int CddwDome::parkDome()
 #endif
         return ERR_COMMANDINPROGRESS;
     }
-    
 
     nErr = goHome();
     return nErr;
@@ -1463,6 +1464,8 @@ bool CddwDome::isDomeMoving()
             case 'L':    // moving Left
             case 'R':    // moving Right
             case 'T':    // Az Tick
+			case 'C':    // Closing shutter
+			case 'O':    // Opening shutter
             case 'S':    // Manual ops
                 m_bDomeIsMoving  = true;
                 dataReceivedTimer.Reset();
@@ -1495,7 +1498,7 @@ bool CddwDome::isDomeMoving()
                         fprintf(Logfile, "[%s] [CddwDome::isDomeMoving] std::stof exception : %s\n", timestamp, e.what());
                         fflush(Logfile);
 #endif
-                        return ERR_DATAOUT;
+                        return false;
                     }
                 }
                 dataReceivedTimer.Reset();
@@ -1520,6 +1523,7 @@ bool CddwDome::isDomeMoving()
 bool CddwDome::isShutterMoving()
 {
     int nErr = DDW_OK;
+	int nConvErr = DDW_OK;
     char szResp[SERIAL_BUFFER_SIZE];
     std::vector<std::string> vFieldsData;
     
@@ -1598,12 +1602,41 @@ bool CddwDome::isShutterMoving()
 
                 dataReceivedTimer.Reset();
                 break;
+			case 'L':    // moving Left
+			case 'R':    // moving Right
+			case 'T':    // Az Tick
             case 'C':    // Closing shutter
             case 'O':    // Opening shutter
             case 'S':    // Manual ops
                 m_bShutterIsMoving  = true;
                 dataReceivedTimer.Reset();
                 break;
+			case 'P':    // moving and reporting position
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+				ltime = time(NULL);
+				timestamp = asctime(localtime(&ltime));
+				timestamp[strlen(timestamp) - 1] = 0;
+				fprintf(Logfile, "[%s] [CddwDome::isDomeMoving] resp[0] is 'P' we're still moving and updating position\n", timestamp);
+				fflush(Logfile);
+#endif
+				m_bShutterIsMoving  = true;
+				nConvErr = parseFields(szResp, vFieldsData, 'P');
+				if(!nConvErr && m_nNbStepPerRev && vFieldsData.size()) {
+					try {
+						m_dCurrentAzPosition = (360.0/m_nNbStepPerRev) * std::stof(vFieldsData[0]);
+					} catch(const std::exception& e) {
+#if defined DDW_DEBUG
+						ltime = time(NULL);
+						timestamp = asctime(localtime(&ltime));
+						timestamp[strlen(timestamp) - 1] = 0;
+						fprintf(Logfile, "[%s] [CddwDome::isDomeMoving] std::stof exception : %s\n", timestamp, e.what());
+						fflush(Logfile);
+#endif
+						return false;
+					}
+				}
+				dataReceivedTimer.Reset();
+				break;
             default :    // shouldn't happen !
                 m_bShutterIsMoving  = false;
                 break;
@@ -1771,7 +1804,8 @@ int CddwDome::isOpenComplete(bool &bComplete)
 
     bComplete = false;
 
-    if(!m_bShutterIsMoving) { // case of an open when it's already openned
+	// if(!m_bShutterIsMoving) { // case of an open when it's already openned
+	if(!m_bDomeIsMoving) {
         bComplete = true;
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
         ltime = time(NULL);
@@ -1783,7 +1817,7 @@ int CddwDome::isOpenComplete(bool &bComplete)
         return nErr;
     }
     
-    if(isShutterMoving()) {
+    if(isDomeMoving()) {
         return nErr;
     }
 
@@ -1827,7 +1861,8 @@ int CddwDome::isCloseComplete(bool &bComplete)
 
     bComplete = false;
 
-    if(!m_bShutterIsMoving) { // case of an close when it's already closed
+    // if(!m_bShutterIsMoving) { // case of an close when it's already closed
+	if(!m_bDomeIsMoving) {
         bComplete = true;
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
         ltime = time(NULL);
@@ -1839,7 +1874,7 @@ int CddwDome::isCloseComplete(bool &bComplete)
         return nErr;
     }
 
-    if(isShutterMoving()) {
+    if(isDomeMoving()) {
         return nErr;
     }
     // Shutter is not not moving anymore. so the close is done and now we check for errors.
