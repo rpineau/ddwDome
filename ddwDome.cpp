@@ -1720,13 +1720,13 @@ int CddwDome::isGoToComplete(bool &bComplete)
     timestamp[strlen(timestamp) - 1] = 0;
     fprintf(Logfile, "[%s] [CddwDome::isGoToComplete] m_dCoastDeg = %3.2f\n", timestamp, m_dCoastDeg);
     fprintf(Logfile, "[%s] [CddwDome::isGoToComplete] domeAz = %f, mGotoAz = %f.\n", timestamp, dDomeAz, m_dGotoAz);
-    fprintf(Logfile, "[%s] [CddwDome::isGoToComplete] ceil(m_dGotoAz) = %3.2f, ceil(dDomeAz) + m_dCoastDeg = %3.2f, ceil(dDomeAz) - m_dCoastDeg = %3.2f\n", timestamp, ceil(m_dGotoAz), ceil(dDomeAz) + m_dCoastDeg, ceil(dDomeAz) - m_dCoastDeg);
-    fprintf(Logfile, "[%s] [CddwDome::isGoToComplete] (ceil(m_dGotoAz) <= (ceil(dDomeAz) + m_dCoastDeg) ) = %d , (ceil(m_dGotoAz) >= (ceil(dDomeAz) - m_dCoastDeg) ) = %d  n", timestamp, (ceil(m_dGotoAz) <= (ceil(dDomeAz) + m_dCoastDeg) ), (ceil(m_dGotoAz) >= (ceil(dDomeAz) - m_dCoastDeg) ));
+    fprintf(Logfile, "[%s] [CddwDome::isGoToComplete] ceil(m_dGotoAz) = %3.2f, ceil(dDomeAz) + m_dCoastDeg*2 = %3.2f, ceil(dDomeAz) - m_dCoastDeg*2 = %3.2f\n", timestamp, ceil(m_dGotoAz), ceil(dDomeAz) + (m_dCoastDeg*2), ceil(dDomeAz) - (m_dCoastDeg*2));
+    fprintf(Logfile, "[%s] [CddwDome::isGoToComplete] (ceil(m_dGotoAz) <= (ceil(dDomeAz) + m_dCoastDeg*2) ) = %d , (ceil(m_dGotoAz) >= (ceil(dDomeAz) - m_dCoastDeg*2) ) = %d  n", timestamp, (ceil(m_dGotoAz) <= (ceil(dDomeAz) + (m_dCoastDeg*2)) ), (ceil(m_dGotoAz) >= (ceil(dDomeAz) - (m_dCoastDeg*2)) ));
     fflush(Logfile);
 #endif
 
     
-    if ((ceil(m_dGotoAz) <= (ceil(dDomeAz) + m_dCoastDeg) ) && (ceil(m_dGotoAz) >= (ceil(dDomeAz) - m_dCoastDeg) )) {
+    if ((ceil(m_dGotoAz) <= (ceil(dDomeAz) + (m_dCoastDeg*2)) ) && (ceil(m_dGotoAz) >= (ceil(dDomeAz) - (m_dCoastDeg*2)) )) {
         bComplete = true;
     }
     else {
