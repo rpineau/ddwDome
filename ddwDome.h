@@ -36,7 +36,7 @@
 
 #include "StopWatch.h"
 
-// #define DDW_DEBUG 1
+#define DDW_DEBUG 2
 
 #define SERIAL_BUFFER_SIZE 4096
 #define MAX_TIMEOUT 2000

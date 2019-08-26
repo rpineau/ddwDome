@@ -554,7 +554,7 @@ int CddwDome::getCoast()
 #endif
         return ERR_DATAOUT;
     }
-    m_dCoastDeg = (360.0/m_nNbStepPerRev) * nNbStepCoast;
+    m_dCoastDeg = ceil((360.0/m_nNbStepPerRev) * nNbStepCoast);
 
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
     ltime = time(NULL);
@@ -1714,6 +1714,18 @@ int CddwDome::isGoToComplete(bool &bComplete)
     if(nErr)
         return nErr;
 
+#if defined DDW_DEBUG && DDW_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CddwDome::isGoToComplete] m_dCoastDeg = %3.2f\n", timestamp, m_dCoastDeg);
+    fprintf(Logfile, "[%s] [CddwDome::isGoToComplete] domeAz = %f, mGotoAz = %f.\n", timestamp, dDomeAz, m_dGotoAz);
+    fprintf(Logfile, "[%s] [CddwDome::isGoToComplete] ceil(m_dGotoAz) = %3.2f, ceil(dDomeAz) + m_dCoastDeg = %3.2f, ceil(dDomeAz) - m_dCoastDeg = %3.2f\n", timestamp, ceil(m_dGotoAz), ceil(dDomeAz) + m_dCoastDeg, ceil(dDomeAz) - m_dCoastDeg);
+    fprintf(Logfile, "[%s] [CddwDome::isGoToComplete] (ceil(m_dGotoAz) <= (ceil(dDomeAz) + m_dCoastDeg) ) = %d , (ceil(m_dGotoAz) >= (ceil(dDomeAz) - m_dCoastDeg) ) = %d  n", timestamp, (ceil(m_dGotoAz) <= (ceil(dDomeAz) + m_dCoastDeg) ), (ceil(m_dGotoAz) >= (ceil(dDomeAz) - m_dCoastDeg) ));
+    fflush(Logfile);
+#endif
+
+    
     if ((ceil(m_dGotoAz) <= (ceil(dDomeAz) + m_dCoastDeg) ) && (ceil(m_dGotoAz) >= (ceil(dDomeAz) - m_dCoastDeg) )) {
         bComplete = true;
     }
