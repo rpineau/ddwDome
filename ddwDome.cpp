@@ -57,7 +57,7 @@ CddwDome::CddwDome()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_08_26_1815.\n", timestamp);
+	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_08_26_2000.\n", timestamp);
     fprintf(Logfile, "[%s] [CddwDome::CddwDome] Constructor Called.\n", timestamp);
     fflush(Logfile);
 #endif
@@ -214,7 +214,7 @@ int CddwDome::domeCommand(const char *cmd, char *result, unsigned int resultMaxL
         ltime = time(NULL);
         timestamp = asctime(localtime(&ltime));
         timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CddwDome::domeCommand] Sending %s\n", timestamp, cmd);
+        fprintf(Logfile, "[%s] [CddwDome::domeCommand] Sending :'%s'\n", timestamp, cmd);
         fflush(Logfile);
     #endif
 
@@ -243,7 +243,7 @@ int CddwDome::domeCommand(const char *cmd, char *result, unsigned int resultMaxL
 	ltime = time(NULL);
 	timestamp = asctime(localtime(&ltime));
 	timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CddwDome::domeCommand] Response %s\n", timestamp, szResp);
+    fprintf(Logfile, "[%s] [CddwDome::domeCommand] Response : '%s'\n", timestamp, szResp);
 	fflush(Logfile);
 #endif
 	
@@ -1682,10 +1682,10 @@ int CddwDome::isOpenComplete(bool &bComplete)
     if(!nErr) {
         if(m_bShutterOpened){
             m_dCurrentElPosition = 90.0;
-            nErr =  ERR_CMDFAILED;  // we're done opening and yet it's not open !
         }
         else {
             m_dCurrentElPosition = 0.0;
+            nErr =  ERR_CMDFAILED;  // we're done opening and yet it's not open !
         }
     }
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
@@ -1695,7 +1695,6 @@ int CddwDome::isOpenComplete(bool &bComplete)
     fprintf(Logfile, "[%s] [CddwDome::isOpenComplete] bComplete = %s, nErr = %d\n", timestamp, bComplete?"True":"False", nErr);
     fflush(Logfile);
 #endif
-
     return nErr;
 }
 
