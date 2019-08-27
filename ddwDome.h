@@ -142,7 +142,6 @@ protected:
     int             getDeadZone();
 
     bool            isDomeMoving();
-    bool            isShutterMoving();
     bool            isDomeAtHome();
     
 
@@ -154,7 +153,6 @@ protected:
     bool            m_bIsConnected;
     bool            m_bParked;
     bool            m_bDomeIsMoving;
-    bool            m_bShutterIsMoving;
     int             m_nNbStepPerRev;
 
     double          m_dShutterBatteryVolts;
