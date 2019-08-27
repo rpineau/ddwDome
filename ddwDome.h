@@ -36,7 +36,7 @@
 
 #include "StopWatch.h"
 
-#define DDW_DEBUG 2
+#define DDW_DEBUG 1
 
 #define SERIAL_BUFFER_SIZE 4096
 #define MAX_TIMEOUT 2000
@@ -142,7 +142,6 @@ protected:
     int             getDeadZone();
 
     bool            isDomeMoving();
-    bool            isShutterMoving();
     bool            isDomeAtHome();
     
 
@@ -154,7 +153,6 @@ protected:
     bool            m_bIsConnected;
     bool            m_bParked;
     bool            m_bDomeIsMoving;
-    bool            m_bShutterIsMoving;
     int             m_nNbStepPerRev;
 
     double          m_dShutterBatteryVolts;
