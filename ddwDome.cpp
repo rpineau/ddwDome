@@ -58,7 +58,7 @@ CddwDome::CddwDome()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_08_25_0930.\n", timestamp);
+	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_08_26_1535.\n", timestamp);
     fprintf(Logfile, "[%s] [CddwDome::CddwDome] Constructor Called.\n", timestamp);
     fflush(Logfile);
 #endif
@@ -554,7 +554,7 @@ int CddwDome::getCoast()
 #endif
         return ERR_DATAOUT;
     }
-    m_dCoastDeg = ceil((360.0/m_nNbStepPerRev) * nNbStepCoast);
+    m_dCoastDeg = (360.0/m_nNbStepPerRev) * nNbStepCoast;
 
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
     ltime = time(NULL);
@@ -1015,14 +1015,14 @@ int CddwDome::goHome()
                         return ERR_CMDFAILED;
                     }
 
-                    if( nTmpAz < (nTmphomeAz - m_dCoastDeg) || nTmpAz > (nTmphomeAz + m_dCoastDeg)) {
+                    if( nTmpAz < floor(nTmphomeAz - m_dCoastDeg) || nTmpAz > ceil(nTmphomeAz + m_dCoastDeg)) {
                         // we're  home but the dome az is wrong, let's move off and back home, hopping the controller will correct the position
                         // when the sensor transition happens.
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
                         ltime = time(NULL);
                         timestamp = asctime(localtime(&ltime));
                         timestamp[strlen(timestamp) - 1] = 0;
-                        fprintf(Logfile, "[%s] [CddwDome::goHome] not home, moving %3.2f degree off\n", timestamp, m_dCoastDeg + 1.0);
+                        fprintf(Logfile, "[%s] [CddwDome::goHome] not home, moving %3.2f degree off (m_dDeadZoneDeg + 1 degree)\n", timestamp, m_dDeadZoneDeg + 1.0);
                         fflush(Logfile);
 #endif
                         bIsGotoDone = false;
@@ -1753,13 +1753,13 @@ int CddwDome::isGoToComplete(bool &bComplete)
     timestamp[strlen(timestamp) - 1] = 0;
     fprintf(Logfile, "[%s] [CddwDome::isGoToComplete] m_dCoastDeg = %3.2f\n", timestamp, m_dCoastDeg);
     fprintf(Logfile, "[%s] [CddwDome::isGoToComplete] domeAz = %f, mGotoAz = %f.\n", timestamp, dDomeAz, m_dGotoAz);
-    fprintf(Logfile, "[%s] [CddwDome::isGoToComplete] ceil(m_dGotoAz) = %3.2f, ceil(dDomeAz) + m_dCoastDeg*2 = %3.2f, ceil(dDomeAz) - m_dCoastDeg*2 = %3.2f\n", timestamp, ceil(m_dGotoAz), ceil(dDomeAz) + (m_dCoastDeg*2), ceil(dDomeAz) - (m_dCoastDeg*2));
-    fprintf(Logfile, "[%s] [CddwDome::isGoToComplete] (ceil(m_dGotoAz) <= (ceil(dDomeAz) + m_dCoastDeg*2) ) = %d , (ceil(m_dGotoAz) >= (ceil(dDomeAz) - m_dCoastDeg*2) ) = %d  n", timestamp, (ceil(m_dGotoAz) <= (ceil(dDomeAz) + (m_dCoastDeg*2)) ), (ceil(m_dGotoAz) >= (ceil(dDomeAz) - (m_dCoastDeg*2)) ));
+    fprintf(Logfile, "[%s] [CddwDome::isGoToComplete] m_dGotoAz = %3.2f, dDomeAz + m_dCoastDeg = %3.2f, dDomeAz - m_dCoastDeg = %3.2f\n", timestamp, m_dGotoAz, dDomeAz + m_dCoastDeg, dDomeAz - m_dCoastDeg);
+	fprintf(Logfile, "[%s] [CddwDome::isGoToComplete] m_dGotoAz = %3.2f, ceil(dDomeAz + m_dCoastDeg) = %3.2f, floor(dDomeAz - m_dCoastDeg) = %3.2f\n", timestamp, m_dGotoAz, ceil(dDomeAz + m_dCoastDeg), floor(dDomeAz - m_dCoastDeg));
+    fprintf(Logfile, "[%s] [CddwDome::isGoToComplete] (m_dGotoAz <= ceil(dDomeAz + m_dCoastDeg)) = %d , (m_dGotoAz >= floor(dDomeAz - m_dCoastDeg)) = %d  \nn", timestamp, (m_dGotoAz <= ceil(dDomeAz + m_dCoastDeg)), (m_dGotoAz >= floor(dDomeAz - m_dCoastDeg)) );
     fflush(Logfile);
 #endif
 
-    
-    if ((ceil(m_dGotoAz) <= (ceil(dDomeAz) + (m_dCoastDeg*2)) ) && (ceil(m_dGotoAz) >= (ceil(dDomeAz) - (m_dCoastDeg*2)) )) {
+	if (( m_dGotoAz <= ceil(dDomeAz + m_dCoastDeg) ) && (m_dGotoAz >= floor(dDomeAz - m_dCoastDeg) )) {
         bComplete = true;
     }
     else {
