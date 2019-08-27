@@ -57,7 +57,7 @@ CddwDome::CddwDome()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_08_26_1535.\n", timestamp);
+	fprintf(Logfile, "[%s] [CddwDome::CddwDome] Version 2019_08_26_1815.\n", timestamp);
     fprintf(Logfile, "[%s] [CddwDome::CddwDome] Constructor Called.\n", timestamp);
     fflush(Logfile);
 #endif
