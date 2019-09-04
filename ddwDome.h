@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <memory.h>
+#include <sys/errno.h>
 
 #ifdef SB_MAC_BUILD
 #include <unistd.h>
@@ -176,6 +177,8 @@ protected:
     bool            m_bShutterOpened;
 
     std::vector<std::string>    m_svGinf;
+	std::string		m_sPort;
+	bool			m_bHardwareFlowControl;
 
     CStopWatch      timer;
     CStopWatch      dataReceivedTimer;
