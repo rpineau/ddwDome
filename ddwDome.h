@@ -12,7 +12,6 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <memory.h>
-#include <sys/errno.h>
 
 #ifdef SB_MAC_BUILD
 #include <unistd.h>
@@ -20,6 +19,9 @@
 
 #ifdef SB_WIN_BUILD
 #include <time.h>
+#include <errno.h>
+#else
+#include <sys/errno.h>
 #endif
 
 #include <math.h>
@@ -37,7 +39,7 @@
 
 #include "StopWatch.h"
 
-// #define DDW_DEBUG 2
+#define DDW_DEBUG 2
 
 #define SERIAL_BUFFER_SIZE 4096
 #define MAX_TIMEOUT 2000
