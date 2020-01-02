@@ -2,6 +2,7 @@
 *.xcworkspace
 .DS_Store
 build
+*.exe
 *.opensdf
 *.sdf
 .vs
@@ -9,7 +10,9 @@ Release
 *.pkg
 *.so
 *.pkg
-*.VC.*
-*.exe
-*.zip
+.idea
+.idea/codeStyles/*.xml
+.idea/*.xml
+.idea/*.iml
+*.VC.db
 *.user
