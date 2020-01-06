@@ -24,6 +24,7 @@ elif [ -d "$TheSkyX_Path/Resources/Common/PlugIns64" ]; then
 	PLUGINS_DIR="$TheSkyX_Path/Resources/Common/PlugIns64"
 else
 	PLUGINS_DIR="$TheSkyX_Path/Resources/Common/PlugIns"
+fi
 
 cp "/tmp/ddwDome_X2/domelist ddwDome.txt" "$TheSkyX_Path/Resources/Common/Miscellaneous Files/"
 cp "/tmp/ddwDome_X2/ddwDome.ui" "$PLUGINS_DIR//DomePlugIns/"
