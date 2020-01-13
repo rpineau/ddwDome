@@ -94,6 +94,9 @@ int CddwDome::Connect(const char *szPort, bool bHardwareFlowControl)
         return ERR_COMMNOLINK;
     }
 
+	m_sPort.assign(szPort);
+	m_bHardwareFlowControl = bHardwareFlowControl;
+
 #if defined DDW_DEBUG && DDW_DEBUG >= 2
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
@@ -274,7 +277,14 @@ int CddwDome::readResponse(char *respBuffer, unsigned int bufferLen, unsigned in
             fprintf(Logfile, "[%s] [CddwDome::readResponse] readFile error : %d\n", timestamp, nErr);
             fflush(Logfile);
 #endif
-            return nErr;
+			if(nErr == EIO || nErr == EAGAIN) {	//let's try to reconnect
+				m_pSerx->close();
+				if(m_bHardwareFlowControl)
+					nErr = m_pSerx->open(m_sPort.c_str(), 9600, SerXInterface::B_NOPARITY, "-DTR_CONTROL 1 -RTS_CONTROL 1");
+				else
+					nErr = m_pSerx->open(m_sPort.c_str(), 9600, SerXInterface::B_NOPARITY, "-DTR_CONTROL 1");
+			}
+			return nErr;
         }
 
         if (nBytesRead !=1) {// timeout
